@@ -3,6 +3,12 @@ import { Header } from "@/components/header";
 import Image from "next/image";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Metadata } from "next";
+import {
+  NODE_SELECTED,
+  NODE_JOYO,
+  NODE_JINMEIYO,
+  NODE_OTHER,
+} from "@/lib/graph-colors";
 
 export const metadata: Metadata = {
   title: "About",
@@ -33,22 +39,22 @@ const About = () => {
               link. Nodes are colored based on type:{" "}
               <svg className="inline h-[12px]" viewBox="0 0 100 100">
                 <circle fill="black" cx={50} cy={50} r={50} />
-                <circle fill="#2b99cf" cx={50} cy={50} r={40} />
+                <circle fill={NODE_SELECTED} cx={50} cy={50} r={40} />
               </svg>{" "}
               currently selected kanji,{" "}
               <svg className="inline h-[12px]" viewBox="0 0 100 100">
                 <circle fill="black" cx={50} cy={50} r={50} />
-                <circle fill="#80c2e2" cx={50} cy={50} r={40} />
+                <circle fill={NODE_JOYO} cx={50} cy={50} r={40} />
               </svg>{" "}
               jōyō kanji,{" "}
               <svg className="inline h-[12px]" viewBox="0 0 100 100">
                 <circle fill="black" cx={50} cy={50} r={50} />
-                <circle fill="#d5ebf5" cx={50} cy={50} r={40} />
+                <circle fill={NODE_JINMEIYO} cx={50} cy={50} r={40} />
               </svg>{" "}
               jinmeiyō kanji,{" "}
               <svg className="inline h-[12px]" viewBox="0 0 100 100">
                 <circle fill="black" cx={50} cy={50} r={50} />
-                <circle fill="#fff" cx={50} cy={50} r={40} />
+                <circle fill={NODE_OTHER} cx={50} cy={50} r={40} />
               </svg>{" "}
               neither.
             </p>

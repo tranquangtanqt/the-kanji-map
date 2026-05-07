@@ -10,6 +10,12 @@ import ForceGraph2D, {
 } from "react-force-graph-2d";
 import kanjilist from "@/../data/kanjilist.json";
 import { buildKanjiHref, type MobileTabKey } from "@/lib/kanji-routing";
+import {
+  NODE_SELECTED,
+  NODE_JOYO,
+  NODE_JINMEIYO,
+  NODE_OTHER,
+} from "@/lib/graph-colors";
 import type { RectReadOnly } from "react-use-measure";
 import { useRouter } from "next/navigation";
 import { useTheme } from "next-themes";
@@ -117,17 +123,17 @@ const Graph2D: React.FC<Props> = ({
     let color;
     // if it is he main node
     if (node.id === kanjiInfo.id) {
-      color = "#2B99CF";
+      color = NODE_SELECTED;
     } else if (joyoList?.includes(String(node.id))) {
-      color = "#80c2e2";
+      color = NODE_JOYO;
     } else if (jinmeiyoList?.includes(String(node.id))) {
-      color = "#d5ebf5";
+      color = NODE_JINMEIYO;
     } else {
-      color = "#fff";
+      color = NODE_OTHER;
     }
 
     if (node.id === hoverNode?.id) {
-      color = "#2B99CF";
+      color = NODE_SELECTED;
     }
 
     const radius = (bckgDimensions[1] / 2) * 1.5;

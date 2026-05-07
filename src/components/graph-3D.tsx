@@ -2,6 +2,12 @@
 
 import kanjilist from "@/../data/kanjilist.json";
 import { buildKanjiHref, type MobileTabKey } from "@/lib/kanji-routing";
+import {
+  NODE_SELECTED,
+  NODE_JOYO,
+  NODE_JINMEIYO,
+  NODE_OTHER,
+} from "@/lib/graph-colors";
 import { useTheme } from "next-themes";
 import { useRouter } from "next/navigation";
 import * as React from "react";
@@ -200,13 +206,13 @@ const Graph3D = ({
   // Get default node color based on its type
   const getNodeDefaultColor = (nodeId: string) => {
     if (nodeId === kanjiInfo.id) {
-      return "#2B99CF"; // Main node
+      return NODE_SELECTED;
     } else if (joyoList.includes(String(nodeId))) {
-      return "#80c2e2"; // Joyo kanji
+      return NODE_JOYO;
     } else if (jinmeiyoList.includes(String(nodeId))) {
-      return "#d5ebf5"; // Jinmeiyo kanji
+      return NODE_JINMEIYO;
     }
-    return "#fff"; // Default
+    return NODE_OTHER;
   };
 
   // find same onyomi
@@ -298,13 +304,13 @@ const Graph3D = ({
         let color;
         // if it is he main node
         if (node.id === kanjiInfo.id) {
-          color = "#2B99CF";
+          color = NODE_SELECTED;
         } else if (joyoList?.includes(String(node.id))) {
-          color = "#80c2e2";
+          color = NODE_JOYO;
         } else if (jinmeiyoList?.includes(String(node.id))) {
-          color = "#d5ebf5";
+          color = NODE_JINMEIYO;
         } else {
-          color = "#fff";
+          color = NODE_OTHER;
         }
 
         const ball = new THREE.Mesh(

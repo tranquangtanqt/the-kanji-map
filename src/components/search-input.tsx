@@ -36,6 +36,10 @@ import {
   resolveKanjiId,
 } from "@/lib/kanji-variants";
 import { buildKanjiHref } from "@/lib/kanji-routing";
+import {
+  SearchListEntry,
+  scoreSearchEntry,
+} from "@/lib/search-score";
 
 const JLPT_LEVELS = ["N5", "N4", "N3", "N2", "N1"] as const;
 type JLPTLevel = (typeof JLPT_LEVELS)[number];
@@ -92,15 +96,6 @@ const JLPT_LABELS: Record<JlptFilter, string> = {
 
 const JLPT_FILTER_ITEMS = [...JLPT_LEVELS, "unknown"] as const;
 
-type SearchListEntry = {
-  k: string;
-  r: string;
-  m: string;
-  g: number;
-  j?: string | null;
-  s?: number | null;
-};
-
 type PersistedFilters = {
   groupFilters: GroupFilters;
   jlptFilters: JLPTFilters;
@@ -146,14 +141,6 @@ const normalizeJlptLevel = (
   value: string | null | undefined,
 ): JLPTLevel | null =>
   JLPT_LEVELS.includes(value as JLPTLevel) ? (value as JLPTLevel) : null;
-
-const scoreSearchEntry = (entry: SearchListEntry, canonicalKanji: string) =>
-  (entry.k === canonicalKanji ? 100 : 0) +
-  (entry.g !== 3 ? 10 : 0) +
-  (entry.m ? 5 : 0) +
-  (entry.r ? 5 : 0) +
-  (entry.j ? 3 : 0) +
-  (typeof entry.s === "number" ? 2 : 0);
 
 const OPTIONS: SearchOption[] = (() => {
   const mergedEntries = new Map<

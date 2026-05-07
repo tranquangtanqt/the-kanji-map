@@ -8,25 +8,15 @@ import { notFound } from "next/navigation";
 import type { GraphData } from "react-force-graph-3d";
 import { canonicalizeKanjiIds, resolveKanjiId } from "./kanji-variants";
 
+import {
+  SearchListEntry,
+  scoreSearchEntry,
+} from "@/lib/search-score";
+
 type CompositionEntry = {
   in: string[];
   out: string[];
 };
-
-type SearchListEntry = {
-  k: string;
-  r: string;
-  m: string;
-  j?: string | null;
-  s?: number | null;
-};
-
-const scoreSearchEntry = (entry: SearchListEntry, canonicalKanji: string) =>
-  (entry.k === canonicalKanji ? 100 : 0) +
-  (entry.m ? 5 : 0) +
-  (entry.r ? 5 : 0) +
-  (entry.j ? 3 : 0) +
-  (typeof entry.s === "number" ? 2 : 0);
 
 const searchFallbackByKanji = (() => {
   const fallbackEntries = new Map<string, SearchListEntry>();

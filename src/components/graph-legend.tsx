@@ -2,6 +2,12 @@
 
 import * as React from "react";
 import { InfoIcon } from "lucide-react";
+import {
+  NODE_SELECTED,
+  NODE_JOYO,
+  NODE_JINMEIYO,
+  NODE_OTHER,
+} from "@/lib/graph-colors";
 import { Button } from "./ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "./ui/popover";
 
@@ -11,10 +17,10 @@ interface Props {
 }
 
 const NODE_LEGEND = [
-  { label: "Selected kanji", color: "#2B99CF" },
-  { label: "Joyo kanji", color: "#80c2e2" },
-  { label: "Jinmeiyo kanji", color: "#d5ebf5" },
-  { label: "Other", color: "#ffffff" },
+  { label: "Selected kanji", color: NODE_SELECTED },
+  { label: "Joyo kanji", color: NODE_JOYO },
+  { label: "Jinmeiyo kanji", color: NODE_JINMEIYO },
+  { label: "Other", color: NODE_OTHER },
 ];
 
 export const GraphLegend: React.FC<Props> = ({

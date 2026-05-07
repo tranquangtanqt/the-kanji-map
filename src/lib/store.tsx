@@ -1,7 +1,7 @@
 import { atom } from "jotai";
 import { atomWithStorage } from "jotai/utils";
 
-// Custom `atomWithStorage` to wrap existing data structure coming from zustand
+// Graph preferences persisted in localStorage
 const graphPreferenceAtom = atomWithStorage("graphPreference", {
   state: {
     style: "3D",
