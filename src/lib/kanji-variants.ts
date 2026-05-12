@@ -1,4 +1,4 @@
-export const aliasToCanonical = {
+const aliasToCanonical = {
   "冷": "冷",
   "令": "令",
   "嶺": "嶺",
@@ -17,7 +17,7 @@ const hasOwn = (value: string) =>
 
 export const aliasIds = Object.keys(aliasToCanonical) as AliasKanji[];
 
-export const canonicalToAliases = aliasIds.reduce(
+const canonicalToAliases = aliasIds.reduce(
   (acc, alias) => {
     const canonical = aliasToCanonical[alias];
     acc[canonical] ??= [];
@@ -30,7 +30,7 @@ export const canonicalToAliases = aliasIds.reduce(
 export const resolveKanjiId = (id: string) =>
   hasOwn(id) ? aliasToCanonical[id as AliasKanji] : id;
 
-export const isAliasKanji = (id: string) => hasOwn(id);
+const isAliasKanji = (id: string) => hasOwn(id);
 
 export const getCanonicalAliases = (id: string) =>
   canonicalToAliases[resolveKanjiId(id)] ?? [];

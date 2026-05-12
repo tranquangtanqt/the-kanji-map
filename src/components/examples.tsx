@@ -12,14 +12,22 @@ export const Examples = ({ kanjiInfo }: { kanjiInfo: KanjiInfo | null }) => {
   const highlightKanji = (text: string) => {
     if (!kanjiInfo) return;
     const textArray = text?.split(kanjiInfo.id);
+    let segmentOffset = 0;
+
     return (
       <span>
-        {textArray.map((item, index) => (
-          <React.Fragment key={index}>
+        {textArray.map((item) => {
+          const key = `${item}-${segmentOffset}`;
+          const isBoundary = segmentOffset + item.length < text.length;
+          segmentOffset += item.length + kanjiInfo.id.length;
+
+          return (
+          <React.Fragment key={key}>
             {item}
-            {index !== textArray.length - 1 && <b>{kanjiInfo?.id}</b>}
+            {isBoundary && <b>{kanjiInfo?.id}</b>}
           </React.Fragment>
-        ))}
+          );
+        })}
       </span>
     );
   };
@@ -27,7 +35,7 @@ export const Examples = ({ kanjiInfo }: { kanjiInfo: KanjiInfo | null }) => {
   return (
     <div className="size-full grid grid-rows-[36px_1fr] p-4 mb-14">
       <div>
-        <h3 className="text-lg font-extrabold">Examples</h3>
+        <h3 className="text-lg font-semibold">Examples</h3>
       </div>
       <div>
         {/* KANJIALIVE With AUDIO */}
@@ -41,7 +49,7 @@ export const Examples = ({ kanjiInfo }: { kanjiInfo: KanjiInfo | null }) => {
             return (
               <div
                 className="flex justify-between align-end odd:bg-muted rounded-lg items-center gap-2 p-2 pr-1"
-                key={index}
+                key={`${example?.japanese}-${example?.audio?.mp3 ?? index}`}
               >
                 <p className="min-w-0 flex-1">
                   <span>
@@ -76,7 +84,7 @@ export const Examples = ({ kanjiInfo }: { kanjiInfo: KanjiInfo | null }) => {
         {kanjiInfo?.jishoData?.onyomiExamples?.map(
           (onExample: any, index: number) => (
             <div
-              key={index}
+              key={`${onExample?.example}-${onExample?.reading ?? index}`}
               className="flex justify-between align-end odd:bg-muted rounded-lg items-center p-2"
             >
               <p>
@@ -96,7 +104,7 @@ export const Examples = ({ kanjiInfo }: { kanjiInfo: KanjiInfo | null }) => {
         {kanjiInfo?.jishoData?.kunyomiExamples?.map(
           (kunExample: any, index: number) => (
             <div
-              key={index}
+              key={`${kunExample?.example}-${kunExample?.reading ?? index}`}
               className="flex justify-between align-end odd:bg-muted rounded-lg items-center p-2"
             >
               <p>

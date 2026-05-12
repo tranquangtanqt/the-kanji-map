@@ -37,6 +37,22 @@ type NodeObjectWithData = NodeObject & { data: KanjiInfo };
 
 const KANJI_TEXT_OFFSET_Y = 0.5;
 
+const KANJI_GROUPS = kanjilist.reduce(
+  (groups, entry) => {
+    if (entry.g === 1) {
+      groups.joyo.add(entry.k);
+    } else if (entry.g === 2) {
+      groups.jinmeiyo.add(entry.k);
+    }
+
+    return groups;
+  },
+  {
+    joyo: new Set<string>(),
+    jinmeiyo: new Set<string>(),
+  },
+);
+
 const Graph2D: React.FC<Props> = ({
   kanjiInfo,
   graphData,
@@ -49,29 +65,19 @@ const Graph2D: React.FC<Props> = ({
   onPreviewNode,
   onClosePreview,
 }) => {
-  // group: el.g === 1 ? "joyo" : el.g === 2 ? "jinmeiyo" : "other",
-  const joyoList = kanjilist.filter((el) => el.g === 1).map((el) => el.k);
-  const jinmeiyoList = kanjilist.filter((el) => el.g === 2).map((el) => el.k);
-
   const { resolvedTheme } = useTheme();
+  const { push, prefetch } = useRouter();
 
   const fgRef: React.MutableRefObject<ForceGraphMethods | undefined> =
     React.useRef(undefined);
 
-  const router = useRouter();
-
-  const [data, setData] = React.useState<GraphData | undefined>({
-    nodes: [],
-    links: [],
-  });
-
-  React.useEffect(() => {
-    setData(
+  const data = React.useMemo<GraphData | undefined>(
+    () =>
       showOutLinks
         ? graphData?.withOutLinks
         : (graphData?.noOutLinks as unknown as GraphData),
-    );
-  }, [graphData?.noOutLinks, graphData?.withOutLinks, showOutLinks]);
+    [graphData?.noOutLinks, graphData?.withOutLinks, showOutLinks],
+  );
 
   const buildNodeHref = React.useCallback(
     (id: string) =>
@@ -92,15 +98,15 @@ const Graph2D: React.FC<Props> = ({
       return;
     }
 
-    void router.push(buildNodeHref(nodeId));
+    void push(buildNodeHref(nodeId));
   };
 
   // prefetch routes for nodes visible in the graph
   React.useEffect(() => {
     data?.nodes?.forEach((node) => {
-      void router.prefetch(buildNodeHref(String(node.id)));
+      void prefetch(buildNodeHref(String(node.id)));
     });
-  }, [buildNodeHref, data, router]);
+  }, [buildNodeHref, data, prefetch]);
   // store the hovered node in a state
   const [hoverNode, setHoverNode] = React.useState<NodeObject | null>(null);
 
@@ -124,9 +130,9 @@ const Graph2D: React.FC<Props> = ({
     // if it is he main node
     if (node.id === kanjiInfo.id) {
       color = NODE_SELECTED;
-    } else if (joyoList?.includes(String(node.id))) {
+    } else if (KANJI_GROUPS.joyo.has(String(node.id))) {
       color = NODE_JOYO;
-    } else if (jinmeiyoList?.includes(String(node.id))) {
+    } else if (KANJI_GROUPS.jinmeiyo.has(String(node.id))) {
       color = NODE_JINMEIYO;
     } else {
       color = NODE_OTHER;

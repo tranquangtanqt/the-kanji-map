@@ -59,9 +59,13 @@ fs.createReadStream("./kanji-radicals.csv")
       const frequency = row[11] || "";
       const altRaw = (row[3] || "").trim();
       const alternatives = altRaw
-        ? Array.from(altRaw.replace(/\s+/g, ""))
-            .filter((c) => c && c !== radical)
-            .filter((c, i, a) => a.indexOf(c) === i)
+        ? Array.from(
+            new Set(
+              Array.from(altRaw.replace(/\s+/g, "")).filter(
+                (character) => character && character !== radical
+              )
+            )
+          )
         : [];
 
       const original = altToOriginal.get(radical) || "";

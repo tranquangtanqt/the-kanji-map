@@ -17,7 +17,7 @@ import {
 } from "@/lib/kanji-routing";
 import { buildKanjiHref } from "@/lib/kanji-routing";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import React from "react";
+import React, { Suspense } from "react";
 
 interface KanjiPageContentProps {
   requestedId: string;
@@ -32,6 +32,16 @@ interface KanjiPageContentProps {
 }
 
 export function KanjiPageContent({
+  ...props
+}: KanjiPageContentProps) {
+  return (
+    <Suspense fallback={<div className="w-full grow overflow-hidden" />}>
+      <KanjiPageContentInner {...props} />
+    </Suspense>
+  );
+}
+
+function KanjiPageContentInner({
   requestedId,
   canonicalId,
   variantInfo,
@@ -41,10 +51,16 @@ export function KanjiPageContent({
   navigableRadicalIds,
 }: KanjiPageContentProps) {
   const isMobile = useMediaQuery({ query: "(max-width: 768px)" });
-  const router = useRouter();
+  const { replace } = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const urlMobileTab = getMobileTabIndex(searchParams.get(MOBILE_TAB_PARAM));
+  const getSearchParam = searchParams.get.bind(searchParams);
+  const isHydrated = React.useSyncExternalStore(
+    () => () => {},
+    () => true,
+    () => false,
+  );
+  const urlMobileTab = getMobileTabIndex(getSearchParam(MOBILE_TAB_PARAM));
   const [mobileTabOverride, setMobileTabOverride] = React.useState<{
     pathname: string;
     tab: number;
@@ -53,11 +69,6 @@ export function KanjiPageContent({
     mobileTabOverride && mobileTabOverride.pathname === pathname
       ? mobileTabOverride.tab
       : urlMobileTab;
-
-  const [isMounted, setIsMounted] = React.useState(false);
-  React.useEffect(() => {
-    setIsMounted(true);
-  }, []);
 
   React.useEffect(() => {
     if (
@@ -90,10 +101,10 @@ export function KanjiPageContent({
   );
 
   React.useEffect(() => {
-    if (isMounted && requestedId !== canonicalId) {
-      void router.replace(
+    if (isHydrated && requestedId !== canonicalId) {
+      void replace(
         buildKanjiHref(canonicalId, {
-          tab: searchParams.get(MOBILE_TAB_PARAM)
+          tab: getSearchParam(MOBILE_TAB_PARAM)
             ? getMobileTabKey(activeMobileTab)
             : null,
         }),
@@ -102,14 +113,14 @@ export function KanjiPageContent({
   }, [
     activeMobileTab,
     canonicalId,
-    isMounted,
+    isHydrated,
     requestedId,
-    router,
-    searchParams,
+    getSearchParam,
+    replace,
   ]);
 
   // Render placeholder with same structure to prevent layout shift
-  if (!isMounted) {
+  if (!isHydrated) {
     return (
       <>
         {/* Mobile placeholder */}
@@ -186,7 +197,7 @@ export function KanjiPageContent({
             {
               id: 4,
               label: (
-                <SearchIcon className="w-4 h-4 inline-block -translate-y-0.5" />
+                <SearchIcon className="size-4 inline-block -translate-y-0.5" />
               ),
               content: (
                 <div className="relative mt-8 p-4 flex flex-col items-center gap-12">

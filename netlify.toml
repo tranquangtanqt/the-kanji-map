@@ -1,0 +1,7 @@
+[build]
+command = "rm bun.lockb && bun install && bun run build"
+publish = "out"
+
+[build.environment]
+NODE_VERSION = "24"
+BUN_VERSION = "latest"

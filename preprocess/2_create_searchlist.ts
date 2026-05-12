@@ -172,7 +172,7 @@ const getKanjiInfoWithRetry = async (
     requestTimeoutMs = REQUEST_TIMEOUT_MS,
   }: RetryOptions = {}
 ): Promise<any> => {
-  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+  const attemptFetch = async (attempt: number): Promise<any> => {
     try {
       const jishoData = await withTimeout(
         jisho.searchForKanji(id),
@@ -200,7 +200,7 @@ const getKanjiInfoWithRetry = async (
             }/${maxRetries})`
           );
           await sleep(delay);
-          continue;
+          return attemptFetch(attempt + 1);
         }
       }
 
@@ -210,9 +210,11 @@ const getKanjiInfoWithRetry = async (
         )}`
       );
     }
-  }
 
-  throw new Error(`Failed to fetch data for ${id}: retry loop exited unexpectedly`);
+    throw new Error(`Failed to fetch data for ${id}: retry loop exited unexpectedly`);
+  };
+
+  return attemptFetch(0);
 };
 
 const getGroup = (id: string): number => {
@@ -231,7 +233,11 @@ const processBatch = async (
   const failures: FailedKanji[] = [];
   const totalBatches = Math.ceil(entries.length / batchSize);
 
-  for (let i = 0; i < entries.length; i += batchSize) {
+  const processBatchRange = async (i: number): Promise<void> => {
+    if (i >= entries.length) {
+      return;
+    }
+
     const batch = entries.slice(i, i + batchSize);
     const batchNum = Math.floor(i / batchSize) + 1;
     console.log(
@@ -300,32 +306,27 @@ const processBatch = async (
     if (i + batchSize < entries.length) {
       await sleep(200);
     }
-  }
+
+    await processBatchRange(i + batchSize);
+  };
+
+  await processBatchRange(0);
 
   return { results, failures };
 };
 
-const retryFailedSearchEntries = async (
-  failures: FailedKanji[],
+type RetryPassResult = {
+  recovered: KanjiInfo[];
+  nextFailures: FailedKanji[];
+};
+
+const runRetryPass = async (
+  remainingFailures: FailedKanji[],
+  retryPass: RetryPass,
   getGroupForKanji: (id: string) => number
-): Promise<{ recovered: KanjiInfo[]; remainingFailures: FailedKanji[] }> => {
-  let remainingFailures = failures;
-  const recovered: KanjiInfo[] = [];
-
-  for (let i = 0; i < FINAL_RETRY_PASSES.length; i++) {
-    if (remainingFailures.length === 0) {
-      break;
-    }
-
-    const retryPass = FINAL_RETRY_PASSES[i];
-    console.log(
-      `\n🔁 Retry pass ${i + 1}/${FINAL_RETRY_PASSES.length} for ${
-        remainingFailures.length
-      } kanji (${retryPass.label})...`
-    );
-
-    const nextFailures: FailedKanji[] = [];
-    for (const { id } of remainingFailures) {
+): Promise<RetryPassResult> => {
+  const retryResults = await Promise.all(
+    remainingFailures.map(async ({ id }) => {
       try {
         const info = await getKanjiInfoWithRetry(id, retryPass);
         const jlptLevel =
@@ -335,59 +336,112 @@ const retryFailedSearchEntries = async (
         const strokeCount =
           typeof info?.strokeCount === "number" ? info.strokeCount : null;
 
-        recovered.push({
-          k: id,
-          r: info?.kunyomi ? info.kunyomi.join(", ") : "",
-          m: info?.meaning ?? "",
-          g: getGroupForKanji(id),
-          j: jlptLevel,
-          s: strokeCount,
-        });
+        return {
+          recovered: {
+            k: id,
+            r: info?.kunyomi ? info.kunyomi.join(", ") : "",
+            m: info?.meaning ?? "",
+            g: getGroupForKanji(id),
+            j: jlptLevel,
+            s: strokeCount,
+          } satisfies KanjiInfo,
+        };
       } catch (error) {
         const unsupportedFallback = getUnsupportedSearchFallback(id);
         if (unsupportedFallback) {
           console.log(
             `⚠ Using fallback search metadata for ${id} because Jisho does not serve this character`
           );
-          recovered.push({
-            k: id,
-            r: unsupportedFallback.kunyomi.join(", "),
-            m: unsupportedFallback.meaning,
-            g: getGroupForKanji(id),
-            j: unsupportedFallback.jlptLevel,
-            s: unsupportedFallback.strokeCount,
-          });
-          continue;
+          return {
+            recovered: {
+              k: id,
+              r: unsupportedFallback.kunyomi.join(", "),
+              m: unsupportedFallback.meaning,
+              g: getGroupForKanji(id),
+              j: unsupportedFallback.jlptLevel,
+              s: unsupportedFallback.strokeCount,
+            } satisfies KanjiInfo,
+          };
         }
 
-        nextFailures.push({ id, reason: getErrorMessage(error) });
+        return {
+          failure: { id, reason: getErrorMessage(error) } satisfies FailedKanji,
+        };
       }
+    })
+  );
+
+  return {
+    recovered: retryResults.flatMap((result) =>
+      result.recovered ? [result.recovered] : []
+    ),
+    nextFailures: retryResults.flatMap((result) =>
+      result.failure ? [result.failure] : []
+    ),
+  };
+};
+
+const retryFailedSearchEntries = async (
+  failures: FailedKanji[],
+  getGroupForKanji: (id: string) => number
+): Promise<{ recovered: KanjiInfo[]; remainingFailures: FailedKanji[] }> => {
+  const retryPasses = async (
+    passIndex: number,
+    remainingFailures: FailedKanji[],
+    recovered: KanjiInfo[]
+  ): Promise<{ recovered: KanjiInfo[]; remainingFailures: FailedKanji[] }> => {
+    if (remainingFailures.length === 0 || passIndex >= FINAL_RETRY_PASSES.length) {
+      return { recovered, remainingFailures };
     }
+
+    const retryPass = FINAL_RETRY_PASSES[passIndex];
+    console.log(
+      `\n🔁 Retry pass ${passIndex + 1}/${FINAL_RETRY_PASSES.length} for ${
+        remainingFailures.length
+      } kanji (${retryPass.label})...`
+    );
+
+    const { recovered: recoveredOnPass, nextFailures } = await runRetryPass(
+      remainingFailures,
+      retryPass,
+      getGroupForKanji
+    );
 
     console.log(
       `Recovered ${remainingFailures.length - nextFailures.length}/${
         remainingFailures.length
-      } failed kanji on retry pass ${i + 1}`
+      } failed kanji on retry pass ${passIndex + 1}`
     );
-    remainingFailures = nextFailures;
 
-    if (remainingFailures.length > 0 && i < FINAL_RETRY_PASSES.length - 1) {
+    if (
+      nextFailures.length > 0 &&
+      passIndex < FINAL_RETRY_PASSES.length - 1
+    ) {
       console.log(
         `⏸ Cooling down for ${RETRY_PASS_COOLDOWN_MS}ms before the next retry pass...`
       );
       await sleep(RETRY_PASS_COOLDOWN_MS);
     }
-  }
 
-  return { recovered, remainingFailures };
+    return retryPasses(passIndex + 1, nextFailures, [
+      ...recovered,
+      ...recoveredOnPass,
+    ]);
+  };
+
+  return retryPasses(0, failures, []);
 };
 
 const main = async (): Promise<void> => {
-  const entries = canonicalizeKanjiIds(Object.keys(composition))
-    .filter((id) => isSearchableEntry(id))
-    .map(
-      (id): [string, unknown] => [id, composition[id as keyof typeof composition]]
-    );
+  const entries = canonicalizeKanjiIds(Object.keys(composition)).reduce<
+    [string, unknown][]
+  >((allEntries, id) => {
+    if (isSearchableEntry(id)) {
+      allEntries.push([id, composition[id as keyof typeof composition]]);
+    }
+
+    return allEntries;
+  }, []);
   const failedPath = path.join(
     path.dirname(__dirname),
     "data",
@@ -407,9 +461,15 @@ const main = async (): Promise<void> => {
   const searchListById = new Map(
     [...initialResults, ...recovered].map((entry) => [entry.k, entry])
   );
-  const searchList = entries
-    .map(([id]) => searchListById.get(id))
-    .filter((entry): entry is KanjiInfo => entry !== undefined);
+  const searchList = entries.reduce<KanjiInfo[]>((resolvedEntries, [id]) => {
+    const entry = searchListById.get(id);
+
+    if (entry) {
+      resolvedEntries.push(entry);
+    }
+
+    return resolvedEntries;
+  }, []);
 
   if (remainingFailures.length > 0) {
     fs.writeFileSync(

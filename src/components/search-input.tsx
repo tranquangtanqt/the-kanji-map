@@ -110,32 +110,36 @@ interface VirtualizedCommandProps {
   onSelectOption?: (option: SearchOption) => void;
 }
 
-const VirtualizedScroller = React.forwardRef<
-  HTMLDivElement,
-  React.ComponentProps<"div">
->(({ className, ...props }, ref) => (
-  <div
-    ref={ref}
-    className={[
-      "[scrollbar-width:auto]",
-      "[scrollbar-color:hsl(var(--muted-foreground)/0.35)_transparent]",
-      "[&::-webkit-scrollbar]:w-2.5",
-      "[&::-webkit-scrollbar-track]:bg-transparent",
-      "[&::-webkit-scrollbar-button]:hidden",
-      "[&::-webkit-scrollbar-button]:h-0", // Forces height to 0
-      "[&::-webkit-scrollbar-button]:w-0", // Forces width to 0
-      "[&::-webkit-scrollbar-button]:bg-transparent", // Fallback transparency
-      "[&::-webkit-scrollbar-thumb]:rounded-full",
-      "[&::-webkit-scrollbar-thumb]:bg-muted-foreground/35",
-      "[&::-webkit-scrollbar-thumb:hover]:bg-muted-foreground/50",
-      className,
-    ]
-      .filter(Boolean)
-      .join(" ")}
-    {...props}
-  />
-));
-VirtualizedScroller.displayName = "VirtualizedScroller";
+type FlattenedOption =
+  | { type: "group"; value: SearchGroup }
+  | { type: "item"; value: SearchOption };
+
+function VirtualizedScroller({
+  className,
+  ...props
+}: React.ComponentPropsWithRef<"div">) {
+  return (
+    <div
+      className={[
+        "[scrollbar-width:auto]",
+        "[scrollbar-color:hsl(var(--muted-foreground)/0.35)_transparent]",
+        "[&::-webkit-scrollbar]:w-2.5",
+        "[&::-webkit-scrollbar-track]:bg-transparent",
+        "[&::-webkit-scrollbar-button]:hidden",
+        "[&::-webkit-scrollbar-button]:h-0", // Forces height to 0
+        "[&::-webkit-scrollbar-button]:w-0", // Forces width to 0
+        "[&::-webkit-scrollbar-button]:bg-transparent", // Fallback transparency
+        "[&::-webkit-scrollbar-thumb]:rounded-full",
+        "[&::-webkit-scrollbar-thumb]:bg-muted-foreground/35",
+        "[&::-webkit-scrollbar-thumb:hover]:bg-muted-foreground/50",
+        className,
+      ]
+        .filter(Boolean)
+        .join(" ")}
+      {...props}
+    />
+  );
+}
 
 const normalizeJlptLevel = (
   value: string | null | undefined,
@@ -337,6 +341,214 @@ const countActiveFilters = (
   return count;
 };
 
+interface SearchFiltersPopoverProps {
+  activeFilterCount: number;
+  filteredOptionsCount: number;
+  groupFilters: GroupFilters;
+  jlptFilters: JLPTFilters;
+  selectedGroups: string[];
+  selectedJlptLevels: string[];
+  strokeRange: [number, number];
+  onResetFilters: () => void;
+  onUpdateGroupSelection: (values: string[]) => void;
+  onUpdateJlptSelection: (values: string[]) => void;
+  onUpdateStrokeRange: (value: number | readonly number[]) => void;
+}
+
+function SearchFiltersPopover({
+  activeFilterCount,
+  filteredOptionsCount,
+  selectedGroups,
+  selectedJlptLevels,
+  strokeRange,
+  onResetFilters,
+  onUpdateGroupSelection,
+  onUpdateJlptSelection,
+  onUpdateStrokeRange,
+}: SearchFiltersPopoverProps) {
+  const collectionAnchor = useComboboxAnchor();
+  const jlptAnchor = useComboboxAnchor();
+
+  return (
+    <div className="flex items-center justify-between gap-2 px-2 py-1.5">
+      <Popover>
+        <PopoverTrigger
+          render={
+            <Button variant="outline" size="sm" className="h-7 gap-1 text-xs" />
+          }
+        >
+          <Filter
+            className={activeFilterCount > 0 ? "size-3.5 text-primary" : "size-3.5"}
+          />
+          Filters{activeFilterCount > 0 ? ` (${activeFilterCount})` : ""}
+        </PopoverTrigger>
+        <PopoverContent
+          className="w-[202px] max-w-[calc(100vw-2rem)] p-3 mt-2"
+          align="start"
+        >
+          <div className="mb-2 flex items-center justify-between">
+            <div className="text-sm font-semibold">Search filters</div>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-7 px-2 text-xs"
+              onClick={onResetFilters}
+            >
+              <RotateCcw className="mr-1 size-3.5" />
+              Reset
+            </Button>
+          </div>
+
+          <div className="space-y-2">
+            <div className="space-y-1">
+              <div className="text-xs text-muted-foreground">Collection</div>
+              <Combobox
+                multiple
+                autoHighlight
+                items={COLLECTION_ITEMS}
+                value={selectedGroups}
+                onValueChange={onUpdateGroupSelection}
+              >
+                <ComboboxChips
+                  ref={collectionAnchor}
+                  className="min-h-8 rounded-md border px-1.5 py-1"
+                >
+                  <ComboboxValue>
+                    {(values: string[]) => (
+                      <React.Fragment>
+                        {values.map((value: string) => (
+                          <ComboboxChip key={value}>
+                            {GROUP_LABELS[value as SearchGroup]}
+                          </ComboboxChip>
+                        ))}
+                        <ComboboxChipsInput className="h-5 text-xs" />
+                      </React.Fragment>
+                    )}
+                  </ComboboxValue>
+                </ComboboxChips>
+                <ComboboxContent anchor={collectionAnchor} align="start" className="w-[220px]">
+                  <ComboboxEmpty>No items found.</ComboboxEmpty>
+                  <ComboboxList>
+                    {(item) => (
+                      <ComboboxItem key={item} value={item}>
+                        {GROUP_LABELS[item as SearchGroup]}
+                      </ComboboxItem>
+                    )}
+                  </ComboboxList>
+                </ComboboxContent>
+              </Combobox>
+            </div>
+
+            <div className="space-y-1">
+              <div className="text-xs text-muted-foreground">JLPT Level</div>
+              <Combobox
+                multiple
+                autoHighlight
+                items={JLPT_FILTER_ITEMS}
+                value={selectedJlptLevels}
+                onValueChange={onUpdateJlptSelection}
+              >
+                <ComboboxChips
+                  ref={jlptAnchor}
+                  className="min-h-8 rounded-md border px-1.5 py-1"
+                >
+                  <ComboboxValue>
+                    {(values: string[]) => (
+                      <React.Fragment>
+                        {values.map((value: string) => (
+                          <ComboboxChip key={value}>
+                            {JLPT_LABELS[value as JlptFilter]}
+                          </ComboboxChip>
+                        ))}
+                        <ComboboxChipsInput className="h-5 text-xs" />
+                      </React.Fragment>
+                    )}
+                  </ComboboxValue>
+                </ComboboxChips>
+                <ComboboxContent anchor={jlptAnchor} align="start" className="w-[220px]">
+                  <ComboboxEmpty>No items found.</ComboboxEmpty>
+                  <ComboboxList>
+                    {(item) => (
+                      <ComboboxItem key={item} value={item}>
+                        {JLPT_LABELS[item as JlptFilter]}
+                      </ComboboxItem>
+                    )}
+                  </ComboboxList>
+                </ComboboxContent>
+              </Combobox>
+            </div>
+
+            <div className="space-y-2 pt-1">
+              <div className="flex items-center justify-between text-xs">
+                <span className="text-muted-foreground">Stroke count</span>
+                <span className="text-muted-foreground">
+                  {strokeRange[0]}-{strokeRange[1]}
+                </span>
+              </div>
+              <Slider
+                min={STROKE_BOUNDS.min}
+                max={STROKE_BOUNDS.max}
+                step={1}
+                value={strokeRange}
+                onValueChange={onUpdateStrokeRange}
+                className="px-2 py-1"
+              />
+            </div>
+          </div>
+        </PopoverContent>
+      </Popover>
+
+      <div className="text-xs text-muted-foreground">{filteredOptionsCount} results</div>
+    </div>
+  );
+}
+
+interface SearchResultsListProps {
+  flattenedOptions: FlattenedOption[];
+  height: string;
+  onSelectOption?: (option: SearchOption) => void;
+}
+
+function SearchResultsList({
+  flattenedOptions,
+  height,
+  onSelectOption,
+}: SearchResultsListProps) {
+  return (
+    <CommandList style={{ height, overflow: "auto", marginTop: "0.5rem" }}>
+      {flattenedOptions.length === 0 ? (
+        <CommandEmpty>No results found.</CommandEmpty>
+      ) : (
+        <Virtuoso
+          data={flattenedOptions}
+          components={{ Scroller: VirtualizedScroller }}
+          itemContent={(_, item) =>
+            item.type === "group" ? (
+              <div className="z-10 p-1 pl-2 text-sm text-foreground/50">{item.value}</div>
+            ) : (
+              <CommandItem value={item.value.kanji} onSelect={() => onSelectOption?.(item.value)}>
+                <div className="flex items-center gap-2">
+                  <div className="text-xl font-bold">{item.value.kanji}</div>
+
+                  <div className="text-xs">
+                    <div>{item.value.kunyomi}</div>
+                    <div className="line-clamp-1">{item.value.meaning}</div>
+                    <div className="text-muted-foreground">
+                      {item.value.jlptLevel ?? "Unknown"} JLPT{" • "}
+                      {item.value.strokeCount ?? "?"} strokes
+                    </div>
+                  </div>
+                </div>
+              </CommandItem>
+            )
+          }
+          style={{ height }}
+        />
+      )}
+    </CommandList>
+  );
+}
+
 const VirtualizedCommand = ({
   height,
   options,
@@ -344,44 +556,36 @@ const VirtualizedCommand = ({
   searchInputRef,
   onSelectOption,
 }: VirtualizedCommandProps) => {
-  const collectionAnchor = useComboboxAnchor();
-  const jlptAnchor = useComboboxAnchor();
+  const defaultFilters = React.useMemo<PersistedFilters>(
+    () => ({
+      groupFilters: { ...DEFAULT_GROUP_FILTERS },
+      jlptFilters: { ...DEFAULT_JLPT_FILTERS },
+      strokeRange: [...DEFAULT_STROKE_RANGE],
+    }),
+    [],
+  );
 
   const [search, setSearch] = React.useState("");
-  const [groupFilters, setGroupFilters] = React.useState<GroupFilters>({
-    ...DEFAULT_GROUP_FILTERS,
-  });
-  const [jlptFilters, setJlptFilters] = React.useState<JLPTFilters>({
-    ...DEFAULT_JLPT_FILTERS,
-  });
-  const [strokeRange, setStrokeRange] =
-    React.useState<[number, number]>(DEFAULT_STROKE_RANGE);
-  const [hasLoadedPersistedFilters, setHasLoadedPersistedFilters] =
-    React.useState(false);
+  const [filters, setFilters] = React.useState<PersistedFilters>(defaultFilters);
+  const hasLoadedPersistedFilters = React.useRef(false);
+
+  const { groupFilters, jlptFilters, strokeRange } = filters;
 
   React.useEffect(() => {
     const persisted = parsePersistedFilters();
     if (persisted) {
-      setGroupFilters(persisted.groupFilters);
-      setJlptFilters(persisted.jlptFilters);
-      setStrokeRange(persisted.strokeRange);
+      setFilters(persisted);
     }
-    setHasLoadedPersistedFilters(true);
+    hasLoadedPersistedFilters.current = true;
   }, []);
 
   React.useEffect(() => {
-    if (!hasLoadedPersistedFilters) {
+    if (!hasLoadedPersistedFilters.current) {
       return;
     }
 
-    const payload: PersistedFilters = {
-      groupFilters,
-      jlptFilters,
-      strokeRange,
-    };
-
-    localStorage.setItem(SEARCH_FILTERS_STORAGE_KEY, JSON.stringify(payload));
-  }, [groupFilters, hasLoadedPersistedFilters, jlptFilters, strokeRange]);
+    localStorage.setItem(SEARCH_FILTERS_STORAGE_KEY, JSON.stringify(filters));
+  }, [filters]);
 
   const selectedGroups = React.useMemo(
     () => COLLECTION_ITEMS.filter((item) => groupFilters[item]),
@@ -439,10 +643,7 @@ const VirtualizedCommand = ({
       groups[option.group].push(option);
     });
 
-    const flatList: Array<
-      | { type: "group"; value: SearchGroup }
-      | { type: "item"; value: SearchOption }
-    > = [];
+    const flatList: FlattenedOption[] = [];
 
     (Object.keys(groups) as SearchGroup[]).forEach((groupName) => {
       if (groups[groupName].length > 0) {
@@ -467,11 +668,14 @@ const VirtualizedCommand = ({
       return;
     }
 
-    setGroupFilters({
-      joyo: nextValues.includes("joyo"),
-      jinmeiyo: nextValues.includes("jinmeiyo"),
-      other: nextValues.includes("other"),
-    });
+    setFilters((currentFilters) => ({
+      ...currentFilters,
+      groupFilters: {
+        joyo: nextValues.includes("joyo"),
+        jinmeiyo: nextValues.includes("jinmeiyo"),
+        other: nextValues.includes("other"),
+      },
+    }));
   };
 
   const updateJlptSelection = (values: string[]) => {
@@ -482,20 +686,21 @@ const VirtualizedCommand = ({
       return;
     }
 
-    setJlptFilters({
-      N5: nextValues.includes("N5"),
-      N4: nextValues.includes("N4"),
-      N3: nextValues.includes("N3"),
-      N2: nextValues.includes("N2"),
-      N1: nextValues.includes("N1"),
-      unknown: nextValues.includes("unknown"),
-    });
+    setFilters((currentFilters) => ({
+      ...currentFilters,
+      jlptFilters: {
+        N5: nextValues.includes("N5"),
+        N4: nextValues.includes("N4"),
+        N3: nextValues.includes("N3"),
+        N2: nextValues.includes("N2"),
+        N1: nextValues.includes("N1"),
+        unknown: nextValues.includes("unknown"),
+      },
+    }));
   };
 
   const resetFilters = () => {
-    setGroupFilters({ ...DEFAULT_GROUP_FILTERS });
-    setJlptFilters({ ...DEFAULT_JLPT_FILTERS });
-    setStrokeRange([...DEFAULT_STROKE_RANGE]);
+    setFilters(defaultFilters);
   };
 
   const updateStrokeRange = (value: number | readonly number[]) => {
@@ -506,199 +711,38 @@ const VirtualizedCommand = ({
 
     const start = clamp(values[0], STROKE_BOUNDS.min, STROKE_BOUNDS.max);
     const end = clamp(values[1], STROKE_BOUNDS.min, STROKE_BOUNDS.max);
-    setStrokeRange(start <= end ? [start, end] : [end, start]);
+    setFilters((currentFilters) => ({
+      ...currentFilters,
+      strokeRange: start <= end ? [start, end] : [end, start],
+    }));
   };
 
   return (
     <Command shouldFilter={false}>
-      <div className="flex items-center justify-between gap-2 px-2 py-1.5">
-        <Popover>
-          <PopoverTrigger
-            render={
-              <Button
-                variant="outline"
-                size="sm"
-                className="h-7 gap-1 text-xs"
-              />
-            }
-          >
-            <Filter
-              className={
-                activeFilterCount > 0 ? "size-3.5 text-primary" : "size-3.5"
-              }
-            />
-            Filters{activeFilterCount > 0 ? ` (${activeFilterCount})` : ""}
-          </PopoverTrigger>
-          <PopoverContent
-            className="w-[202px] max-w-[calc(100vw-2rem)] p-3 mt-2"
-            align="start"
-          >
-            <div className="mb-2 flex items-center justify-between">
-              <div className="text-sm font-semibold">Search filters</div>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="h-7 px-2 text-xs"
-                onClick={resetFilters}
-              >
-                <RotateCcw className="mr-1 size-3.5" />
-                Reset
-              </Button>
-            </div>
-
-            <div className="space-y-2">
-              <div className="space-y-1">
-                <div className="text-xs text-muted-foreground">Collection</div>
-                <Combobox
-                  multiple
-                  autoHighlight
-                  items={COLLECTION_ITEMS}
-                  value={selectedGroups as string[]}
-                  onValueChange={updateGroupSelection}
-                >
-                  <ComboboxChips
-                    ref={collectionAnchor}
-                    className="min-h-8 rounded-md border px-1.5 py-1"
-                  >
-                    <ComboboxValue>
-                      {(values: string[]) => (
-                        <React.Fragment>
-                          {values.map((value: string) => (
-                            <ComboboxChip key={value}>
-                              {GROUP_LABELS[value as SearchGroup]}
-                            </ComboboxChip>
-                          ))}
-                          <ComboboxChipsInput className="h-5 text-xs" />
-                        </React.Fragment>
-                      )}
-                    </ComboboxValue>
-                  </ComboboxChips>
-                  <ComboboxContent
-                    anchor={collectionAnchor}
-                    align="start"
-                    className="w-[220px]"
-                  >
-                    <ComboboxEmpty>No items found.</ComboboxEmpty>
-                    <ComboboxList>
-                      {(item) => (
-                        <ComboboxItem key={item} value={item}>
-                          {GROUP_LABELS[item as SearchGroup]}
-                        </ComboboxItem>
-                      )}
-                    </ComboboxList>
-                  </ComboboxContent>
-                </Combobox>
-              </div>
-
-              <div className="space-y-1">
-                <div className="text-xs text-muted-foreground">JLPT Level</div>
-                <Combobox
-                  multiple
-                  autoHighlight
-                  items={JLPT_FILTER_ITEMS}
-                  value={selectedJlptLevels as string[]}
-                  onValueChange={updateJlptSelection}
-                >
-                  <ComboboxChips
-                    ref={jlptAnchor}
-                    className="min-h-8 rounded-md border px-1.5 py-1"
-                  >
-                    <ComboboxValue>
-                      {(values: string[]) => (
-                        <React.Fragment>
-                          {values.map((value: string) => (
-                            <ComboboxChip key={value}>
-                              {JLPT_LABELS[value as JlptFilter]}
-                            </ComboboxChip>
-                          ))}
-                          <ComboboxChipsInput className="h-5 text-xs" />
-                        </React.Fragment>
-                      )}
-                    </ComboboxValue>
-                  </ComboboxChips>
-                  <ComboboxContent
-                    anchor={jlptAnchor}
-                    align="start"
-                    className="w-[220px]"
-                  >
-                    <ComboboxEmpty>No items found.</ComboboxEmpty>
-                    <ComboboxList>
-                      {(item) => (
-                        <ComboboxItem key={item} value={item}>
-                          {JLPT_LABELS[item as JlptFilter]}
-                        </ComboboxItem>
-                      )}
-                    </ComboboxList>
-                  </ComboboxContent>
-                </Combobox>
-              </div>
-
-              <div className="space-y-2 pt-1">
-                <div className="flex items-center justify-between text-xs">
-                  <span className="text-muted-foreground">Stroke count</span>
-                  <span className="text-muted-foreground">
-                    {strokeRange[0]}-{strokeRange[1]}
-                  </span>
-                </div>
-                <Slider
-                  min={STROKE_BOUNDS.min}
-                  max={STROKE_BOUNDS.max}
-                  step={1}
-                  value={strokeRange}
-                  onValueChange={updateStrokeRange}
-                  className="px-2 py-1"
-                />
-              </div>
-            </div>
-          </PopoverContent>
-        </Popover>
-
-        <div className="text-xs text-muted-foreground">
-          {filteredOptions.length} results
-        </div>
-      </div>
+      <SearchFiltersPopover
+        activeFilterCount={activeFilterCount}
+        filteredOptionsCount={filteredOptions.length}
+        groupFilters={groupFilters}
+        jlptFilters={jlptFilters}
+        selectedGroups={selectedGroups as string[]}
+        selectedJlptLevels={selectedJlptLevels as string[]}
+        strokeRange={strokeRange}
+        onResetFilters={resetFilters}
+        onUpdateGroupSelection={updateGroupSelection}
+        onUpdateJlptSelection={updateJlptSelection}
+        onUpdateStrokeRange={updateStrokeRange}
+      />
       <CommandInput
         ref={searchInputRef}
         value={search}
         onValueChange={setSearch}
         placeholder={placeholder}
       />
-      <CommandList style={{ height, overflow: "auto", marginTop: "0.5rem" }}>
-        {flattenedOptions.length === 0 ? (
-          <CommandEmpty>No results found.</CommandEmpty>
-        ) : (
-          <Virtuoso
-            data={flattenedOptions}
-            components={{ Scroller: VirtualizedScroller }}
-            itemContent={(_, item) =>
-              item.type === "group" ? (
-                <div className="z-10 p-1 pl-2 text-sm text-foreground/50">
-                  {item.value}
-                </div>
-              ) : (
-                <CommandItem
-                  value={item.value.kanji}
-                  onSelect={() => onSelectOption?.(item.value)}
-                >
-                  <div className="flex items-center gap-2">
-                    <div className="text-xl font-bold">{item.value.kanji}</div>
-
-                    <div className="text-xs">
-                      <div>{item.value.kunyomi}</div>
-                      <div className="line-clamp-1">{item.value.meaning}</div>
-                      <div className="text-muted-foreground">
-                        {item.value.jlptLevel ?? "Unknown"} JLPT{" • "}
-                        {item.value.strokeCount ?? "?"} strokes
-                      </div>
-                    </div>
-                  </div>
-                </CommandItem>
-              )
-            }
-            style={{ height }}
-          />
-        )}
-      </CommandList>
+      <SearchResultsList
+        flattenedOptions={flattenedOptions}
+        height={height}
+        onSelectOption={onSelectOption}
+      />
     </Command>
   );
 };
@@ -708,7 +752,7 @@ export const SearchInput = ({
 }: {
   searchPlaceholder?: string;
 }) => {
-  const router = useRouter();
+  const { push } = useRouter();
   const searchInputRef = React.useRef<HTMLInputElement>(null);
 
   const [open, setOpen] = React.useState<boolean>(false);
@@ -723,14 +767,16 @@ export const SearchInput = ({
             variant="outline"
             role="combobox"
             aria-expanded={open}
+            aria-controls="search-command"
             className="w-full max-w-80 justify-between md:w-[220px]"
           />
         }
       >
         <span>{selectedOption ? selectedOption.kanji : searchPlaceholder}</span>
-        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+        <ChevronsUpDown className="ml-2 size-4 shrink-0 opacity-50" />
       </PopoverTrigger>
       <PopoverContent
+        id="search-command"
         className="w-full max-w-80 p-0 md:w-[220px]"
         initialFocus={() => searchInputRef.current}
       >
@@ -742,7 +788,7 @@ export const SearchInput = ({
           onSelectOption={(currentValue) => {
             setSelectedOption(currentValue);
             setOpen(false);
-            router.push(buildKanjiHref(currentValue.kanji));
+            push(buildKanjiHref(currentValue.kanji));
           }}
         />
       </PopoverContent>

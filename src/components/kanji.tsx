@@ -32,10 +32,23 @@ export const Kanji = ({
   strokeAnimation,
   screen,
 }: Props) => {
+  const composition = React.useMemo(
+    () =>
+      graphData?.noOutLinks?.links
+        ?.reduce<string[]>((parts: string[], link: any) => {
+          if (link.target === kanjiInfo?.id) {
+            parts.push(String(link.source));
+          }
+
+          return parts;
+        }, []) ?? [],
+    [graphData?.noOutLinks?.links, kanjiInfo?.id],
+  );
+
   return (
     <div className="min-h-[330px] relative size-full overflow-hidden grid grid-rows-[36px_100px_1fr] grid-cols-[125px_1fr]">
       <div>
-        <h3 className="text-lg font-extrabold">Kanji</h3>
+        <h3 className="text-lg font-semibold">Kanji</h3>
       </div>
       <div className="p-2 w-full h-full overflow-hidden text-sm leading-6 row-span-3">
         {kanjiInfo && joyoList?.includes(kanjiInfo.id) && (
@@ -90,17 +103,12 @@ export const Kanji = ({
           </>
         )}
 
-        {graphData?.noOutLinks?.links && (
+        {composition.length > 0 && (
           <>
             <p>
-              {graphData.noOutLinks.links.filter(
-                (link: any) => link.target === kanjiInfo?.id
-              ).length > 0 && "Composition: "}
-              {graphData.noOutLinks.links
-                .filter((link: any) => link.target === kanjiInfo?.id)
-                .map((link: any) => link.source)
-                .map((comp: any, index: number) => (
-                  <span key={index}>{comp} </span>
+              Composition: 
+              {composition.map((comp: string) => (
+                  <span key={comp}>{comp} </span>
                 ))}
             </p>
           </>

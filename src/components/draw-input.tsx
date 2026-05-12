@@ -17,6 +17,10 @@ export const DrawInput: React.FC = () => {
     typeof Handwriting.Canvas
   > | null>(null);
   const [inputSuggestions, setInputSuggestions] = React.useState<string[]>([]);
+  const searchableKanji = React.useMemo(
+    () => new Set(searchlist.map((entry) => resolveKanjiId(entry.k))),
+    [],
+  );
 
   const { resolvedTheme } = useTheme();
 
@@ -32,15 +36,21 @@ export const DrawInput: React.FC = () => {
     if (err) {
       return;
     } else {
-      const kanjiList = new Set(searchlist.map((entry) => resolveKanjiId(entry.k)));
-      const filtered = Array.from(
-        new Set(
-          result
-            .map((entry) => resolveKanjiId(entry))
-            .filter((entry) => kanjiList.has(entry)),
-        ),
-      )
-        .slice(0, 4);
+      const uniqueSuggestions = new Set<string>();
+
+      for (const entry of result) {
+        const resolvedEntry = resolveKanjiId(entry);
+
+        if (searchableKanji.has(resolvedEntry)) {
+          uniqueSuggestions.add(resolvedEntry);
+        }
+
+        if (uniqueSuggestions.size >= 4) {
+          break;
+        }
+      }
+
+      const filtered = Array.from(uniqueSuggestions);
       setInputSuggestions(filtered);
     }
   };
@@ -68,16 +78,16 @@ export const DrawInput: React.FC = () => {
   };
 
   return (
-    <div className="relative w-[220px] h-[220px] mx-auto bg-background">
-      <div className="absolute left-1/2 h-full border-l border-dashed border-slate-600/20 dark:border-slate-600/60 pointer-events-none z-10" />
-      <div className="absolute top-1/2 w-full border-t border-dashed border-slate-600/20 dark:border-slate-600/60 pointer-events-none z-10" />
+    <div className="relative size-[220px] mx-auto bg-background">
+      <div className="absolute left-1/2 h-full border-l border-dashed border-zinc-600/20 dark:border-zinc-600/60 pointer-events-none z-10" />
+      <div className="absolute top-1/2 w-full border-t border-dashed border-zinc-600/20 dark:border-zinc-600/60 pointer-events-none z-10" />
       <TouchIsolator>
         <canvas
           width={220}
           height={220}
           ref={canvasRef}
           id="handInput"
-          className="relative w-[220px] h-[220px] border border-light rounded-lg cursor-crosshair bg-muted"
+          className="relative size-[220px] touch-none border border-light rounded-lg cursor-crosshair bg-muted"
         />
       </TouchIsolator>
       <div className="h-10 w-full pt-2 flex items-center justify-between">
@@ -88,11 +98,11 @@ export const DrawInput: React.FC = () => {
           className="size-8 shrink-0"
           onClick={eraseKanji}
         >
-          <CircleXIcon className="w-4 h-4" />
+          <CircleXIcon className="size-4" />
         </Button>
-        {inputSuggestions.map((suggestion, index) => (
+        {inputSuggestions.map((suggestion) => (
           <Link
-            key={index}
+            key={suggestion}
             href={buildKanjiHref(suggestion)}
             className={cn(buttonVariants({ variant: "ghost" }), "size-8")}
             onClick={eraseKanji}
@@ -107,7 +117,7 @@ export const DrawInput: React.FC = () => {
           aria-label="Recognize"
           onClick={recognizeKanji}
         >
-          <SearchIcon className="w-4 h-4" />
+          <SearchIcon className="size-4" />
         </Button>
       </div>
     </div>

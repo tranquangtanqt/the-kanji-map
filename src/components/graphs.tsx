@@ -55,6 +55,11 @@ type GraphPreviewNode = {
   data: KanjiInfo | null;
 };
 
+type GraphPreviewState = {
+  scope: string;
+  node: GraphPreviewNode;
+};
+
 export const Graphs: React.FC<Props> = ({
   kanjiInfo,
   graphData,
@@ -91,9 +96,9 @@ export const Graphs: React.FC<Props> = ({
     setOutLinks(nextValues.has("outLinks"));
   };
 
-  const [tabValue] = React.useState(0);
-  const [random, setRandom] = React.useState<number>(Date.now());
-  const [previewNode, setPreviewNode] = React.useState<GraphPreviewNode | null>(
+  const tabValue = 0;
+  const [random, setRandom] = React.useState<number>(() => Date.now());
+  const [previewState, setPreviewState] = React.useState<GraphPreviewState | null>(
     null,
   );
 
@@ -102,7 +107,10 @@ export const Graphs: React.FC<Props> = ({
   };
 
   const pathname = usePathname();
-  const router = useRouter();
+  const { push } = useRouter();
+  const previewScope = `${pathname}:${style}:${kanjiInfo?.id ?? ""}`;
+  const previewNode =
+    previewState?.scope === previewScope ? previewState.node : null;
 
   const previewKunyomi = previewNode?.data?.jishoData?.kunyomi
     ?.filter(Boolean)
@@ -115,13 +123,19 @@ export const Graphs: React.FC<Props> = ({
     ? resolveKanjiId(previewNode.id) === kanjiInfo?.id
     : false;
 
-  React.useEffect(() => {
-    setPreviewNode(null);
-  }, [kanjiInfo?.id, pathname, style]);
+  const openPreviewNode = React.useCallback(
+    (node: GraphPreviewNode) => {
+      setPreviewState({
+        scope: previewScope,
+        node,
+      });
+    },
+    [previewScope],
+  );
 
   const handlePreviewOpenChange = (open: boolean) => {
     if (!open) {
-      setPreviewNode(null);
+      setPreviewState(null);
     }
   };
 
@@ -130,12 +144,12 @@ export const Graphs: React.FC<Props> = ({
       return;
     }
 
-    void router.push(
+    void push(
       buildKanjiHref(previewNode.id, {
         tab: previewIsCurrentKanji ? "kanji" : navigationTab ?? null,
       }),
     );
-    setPreviewNode(null);
+    setPreviewState(null);
   };
 
   if (!kanjiInfo) return <></>;
@@ -177,8 +191,8 @@ export const Graphs: React.FC<Props> = ({
             bounds={bounds}
             navigationTab={navigationTab}
             enableNodePreview={enableNodePreview}
-            onPreviewNode={setPreviewNode}
-            onClosePreview={() => setPreviewNode(null)}
+            onPreviewNode={openPreviewNode}
+            onClosePreview={() => setPreviewState(null)}
           />
         )}
         {kanjiInfo && style === "2D" && (
@@ -191,8 +205,8 @@ export const Graphs: React.FC<Props> = ({
             bounds={bounds}
             navigationTab={navigationTab}
             enableNodePreview={enableNodePreview}
-            onPreviewNode={setPreviewNode}
-            onClosePreview={() => setPreviewNode(null)}
+            onPreviewNode={openPreviewNode}
+            onClosePreview={() => setPreviewState(null)}
           />
         )}
       </div>
@@ -314,7 +328,7 @@ export const Graphs: React.FC<Props> = ({
               </SheetDescription>
             )}
           </SheetHeader>
-          <SheetFooter className="border-t bg-muted px-4 py-4">
+          <SheetFooter className="border-t bg-muted p-4">
             <Button className="h-12 w-full text-base" onClick={handleOpenPreviewPage}>
               {previewIsCurrentKanji ? "Show kanji" : "Open page"}
             </Button>

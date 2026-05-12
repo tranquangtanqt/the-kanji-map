@@ -21,14 +21,14 @@ const About = () => {
         <Header route="about" />
         <ScrollArea className="w-full">
           <div className="p-4 max-w-2xl mx-auto mb-8">
-            <h1 className="text-3xl font-extrabold tracking-tight mt-4 mb-4">
+            <h1 className="text-3xl font-semibold tracking-tight mt-4 mb-4">
               About
             </h1>
             <p>
               The Kanji Map is a Japanese language learning tool that shows
               kanji information and decomposition in graph form.
             </p>
-            <h1 className="text-3xl font-extrabold tracking-tight mt-8 mb-4">
+            <h1 className="text-3xl font-semibold tracking-tight mt-8 mb-4">
               How to use this site
             </h1>
             <p>
@@ -75,7 +75,7 @@ const About = () => {
               <li>Examples with audio, kunyomi and onyomi</li>
               <li>Radical with kunyomi and meaning</li>
             </ul>
-            <h1 className="text-3xl font-extrabold tracking-tight mt-8 mb-4">
+            <h1 className="text-3xl font-semibold tracking-tight mt-8 mb-4">
               Changelog
             </h1>
             <div className="space-y-4">
@@ -127,7 +127,7 @@ const About = () => {
                 </ul>
               </div>
             </div>
-            <h1 className="text-3xl font-extrabold tracking-tight mt-8 mb-4">
+            <h1 className="text-3xl font-semibold tracking-tight mt-8 mb-4">
               Credits
             </h1>
             <ul className="list-disc ml-6">
@@ -220,7 +220,7 @@ const About = () => {
                 released under MIT.
               </li>
             </ul>
-            <h1 className="text-3xl font-extrabold tracking-tight mt-8 mb-4">
+            <h1 className="text-3xl font-semibold tracking-tight mt-8 mb-4">
               Github repository
             </h1>
             <p>
@@ -234,7 +234,7 @@ const About = () => {
                 github.com/gabor-kovacs/the-kanji-map
               </a>
             </p>
-            <h1 className="text-3xl font-extrabold tracking-tight mt-8 mb-4">
+            <h1 className="text-3xl font-semibold tracking-tight mt-8 mb-4">
               Donations
             </h1>
             <a
@@ -265,12 +265,12 @@ const About = () => {
               Donations are used to pay for hosting, maintenance costs and
               improvements.
             </p>
-            <h1 className="text-3xl font-extrabold tracking-tight mt-8 mb-8">
+            <h1 className="text-3xl font-semibold tracking-tight mt-8 mb-8">
               Copyright
             </h1>
             <p>
               The Kanji Map is an open-source project (2017-
-              {new Date().getFullYear()}) maintained under the MIT license. Feel
+              <span suppressHydrationWarning>{new Date().getFullYear()}</span>) maintained under the MIT license. Feel
               free to fork, contribute, or share it with other learners.
             </p>
           </div>
