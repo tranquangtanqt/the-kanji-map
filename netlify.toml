@@ -1,5 +1,5 @@
 [build]
-command = "rm bun.lockb && bun install && bun run build"
+command = "bun install && bun run build"
 publish = "out"
 
 [build.environment]
