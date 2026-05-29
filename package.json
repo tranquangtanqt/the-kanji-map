@@ -6,8 +6,8 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "start": "next start",
-    "serve": "npx serve@latest out",
+    "start": "bunx serve@latest out -l tcp://0.0.0.0:3000",
+    "serve": "bunx serve@latest out -l tcp://0.0.0.0:3000",
     "lint": "eslint .",
     "preprocess": "bun run preprocess/run_preprocess.ts",
     "preprocess:composition": "bun run preprocess/1_create_composition.ts",

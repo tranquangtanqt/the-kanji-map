@@ -368,9 +368,13 @@ function SearchFiltersPopover({
 }: SearchFiltersPopoverProps) {
   const collectionAnchor = useComboboxAnchor();
   const jlptAnchor = useComboboxAnchor();
+  const filterPopoverAnchor = React.useRef<HTMLDivElement>(null);
 
   return (
-    <div className="flex items-center justify-between gap-2 px-2 py-1.5">
+    <div
+      ref={filterPopoverAnchor}
+      className="flex items-center justify-between gap-2 px-2 py-1.5"
+    >
       <Popover>
         <PopoverTrigger
           render={
@@ -383,8 +387,11 @@ function SearchFiltersPopover({
           Filters{activeFilterCount > 0 ? ` (${activeFilterCount})` : ""}
         </PopoverTrigger>
         <PopoverContent
-          className="w-[202px] max-w-[calc(100vw-2rem)] p-3 mt-2"
-          align="start"
+          anchor={filterPopoverAnchor}
+          align="center"
+          collisionPadding={16}
+          sideOffset={8}
+          className="w-[calc(100vw-3rem)] max-w-[18rem] p-3 md:w-[204px] md:max-w-none"
         >
           <div className="mb-2 flex items-center justify-between">
             <div className="text-sm font-semibold">Search filters</div>
@@ -426,7 +433,7 @@ function SearchFiltersPopover({
                     )}
                   </ComboboxValue>
                 </ComboboxChips>
-                <ComboboxContent anchor={collectionAnchor} align="start" className="w-[220px]">
+                <ComboboxContent anchor={collectionAnchor} align="start">
                   <ComboboxEmpty>No items found.</ComboboxEmpty>
                   <ComboboxList>
                     {(item) => (
@@ -465,7 +472,7 @@ function SearchFiltersPopover({
                     )}
                   </ComboboxValue>
                 </ComboboxChips>
-                <ComboboxContent anchor={jlptAnchor} align="start" className="w-[220px]">
+                <ComboboxContent anchor={jlptAnchor} align="start">
                   <ComboboxEmpty>No items found.</ComboboxEmpty>
                   <ComboboxList>
                     {(item) => (
@@ -754,44 +761,48 @@ export const SearchInput = ({
 }) => {
   const { push } = useRouter();
   const searchInputRef = React.useRef<HTMLInputElement>(null);
+  const searchPopoverAnchor = React.useRef<HTMLDivElement>(null);
 
   const [open, setOpen] = React.useState<boolean>(false);
   const [selectedOption, setSelectedOption] =
     React.useState<SearchOption | null>(null);
 
   return (
-    <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger
-        render={
-          <Button
-            variant="outline"
-            role="combobox"
-            aria-expanded={open}
-            aria-controls="search-command"
-            className="w-full max-w-80 justify-between md:w-[220px]"
+    <div ref={searchPopoverAnchor} className="w-full max-w-80 md:w-[220px]">
+      <Popover open={open} onOpenChange={setOpen}>
+        <PopoverTrigger
+          render={
+            <Button
+              variant="outline"
+              role="combobox"
+              aria-expanded={open}
+              aria-controls="search-command"
+              className="w-full justify-between"
+            />
+          }
+        >
+          <span>{selectedOption ? selectedOption.kanji : searchPlaceholder}</span>
+          <ChevronsUpDown className="ml-2 size-4 shrink-0 opacity-50" />
+        </PopoverTrigger>
+        <PopoverContent
+          id="search-command"
+          anchor={searchPopoverAnchor}
+          className="w-[calc(100vw-2rem)] max-w-80 p-0 md:w-[220px] md:max-w-none"
+          initialFocus={() => searchInputRef.current}
+        >
+          <VirtualizedCommand
+            height="215px"
+            options={OPTIONS}
+            placeholder={searchPlaceholder}
+            searchInputRef={searchInputRef}
+            onSelectOption={(currentValue) => {
+              setSelectedOption(currentValue);
+              setOpen(false);
+              push(buildKanjiHref(currentValue.kanji));
+            }}
           />
-        }
-      >
-        <span>{selectedOption ? selectedOption.kanji : searchPlaceholder}</span>
-        <ChevronsUpDown className="ml-2 size-4 shrink-0 opacity-50" />
-      </PopoverTrigger>
-      <PopoverContent
-        id="search-command"
-        className="w-full max-w-80 p-0 md:w-[220px]"
-        initialFocus={() => searchInputRef.current}
-      >
-        <VirtualizedCommand
-          height="215px"
-          options={OPTIONS}
-          placeholder={searchPlaceholder}
-          searchInputRef={searchInputRef}
-          onSelectOption={(currentValue) => {
-            setSelectedOption(currentValue);
-            setOpen(false);
-            push(buildKanjiHref(currentValue.kanji));
-          }}
-        />
-      </PopoverContent>
-    </Popover>
+        </PopoverContent>
+      </Popover>
+    </div>
   );
 };
