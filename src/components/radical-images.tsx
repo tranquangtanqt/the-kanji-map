@@ -1,6 +1,6 @@
 import { useTheme } from "next-themes";
 import * as React from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { AnimatePresence, LazyMotion, domAnimation, m } from "framer-motion";
 
 export const RadicalImages = ({
   radicalImageArray,
@@ -28,27 +28,27 @@ export const RadicalImages = ({
 
   return (
     <div className="relative w-full h-full">
-      <AnimatePresence>
-        {radicalImageArray.map((image, idx) =>
-          idx === index ? (
-            <motion.div
-              key={idx}
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 1, ease: "easeInOut" }}
-              className={`absolute w-full h-full bg-no-repeat bg-contain ${
-                invert ? "invert" : ""
-              }`}
-              style={{
-                backgroundImage: `url(${image})`,
-              }}
-            />
-          ) : null
-        )}
-      </AnimatePresence>
+      <LazyMotion features={domAnimation}>
+        <AnimatePresence>
+          {radicalImageArray.map((image, idx) =>
+            idx === index ? (
+              <m.div
+                key={image}
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 1, ease: "easeInOut" }}
+                className={`absolute w-full h-full bg-no-repeat bg-contain ${
+                  invert ? "invert" : ""
+                }`}
+                style={{
+                  backgroundImage: `url(${image})`,
+                }}
+              />
+            ) : null
+          )}
+        </AnimatePresence>
+      </LazyMotion>
     </div>
   );
 };
-
-export default RadicalImages;

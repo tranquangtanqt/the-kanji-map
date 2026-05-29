@@ -120,6 +120,16 @@ const readKanjiDataFile = async (id: string) => {
   return JSON.parse(jsonData) as KanjiInfo;
 };
 
+const uniqueNodesById = (nodes: Array<{ id: string; data: KanjiInfo | null }>) =>
+  Array.from(new Map(nodes.map((node) => [node.id, node])).values());
+
+const uniqueLinks = (links: Array<{ source: string; target: string }>) =>
+  Array.from(
+    new Map(
+      links.map((link) => [`${link.source}->${link.target}`, link]),
+    ).values(),
+  );
+
 /**
  * This is used by Next.js getStaticPaths to generate possible kanji pages
  */
@@ -177,15 +187,14 @@ export const getKanjiDataLocal: (
       !!baseRadicalId &&
       baseRadicalId !== normalizedId &&
       !effectiveData.kanjialiveData?.radical;
-    const baseRadicalData = shouldHydrateRadicalFromBase
-      ? await readKanjiDataFile(baseRadicalId)
-          .then((data) => data)
-          .catch(() => null)
-      : null;
+    const baseRadicalDataPromise = shouldHydrateRadicalFromBase
+      ? readKanjiDataFile(baseRadicalId).catch(() => null)
+      : Promise.resolve(null);
 
     const shouldHydrateFromSearchFallback =
       (!effectiveData.jishoData || effectiveData.jishoData.found === false) &&
       !!searchFallback;
+    const baseRadicalData = await baseRadicalDataPromise;
 
     return {
       ...effectiveData,
@@ -248,25 +257,13 @@ export const getStrokeAnimation = async (id: string) => {
   const cwd = process.cwd();
 
   for (const directory of SVG_DIRECTORY_LIST) {
-    // Use template strings to minimize Turbopack static analysis
     const filePath = `${cwd}/data/animCJK/${directory}/${fileName}`;
     try {
-      const animationData = await fsPromises.readFile(filePath, "utf8");
-      // If file is found, return the animation data
-      return animationData;
-    } catch (error) {
-      // If the file is not found, continue to the next directory
-      if (
-        error instanceof Error &&
-        (error as NodeJS.ErrnoException).code === "ENOENT"
-      ) {
-        continue; // File not found, try the next folder
-      } else {
-        continue; // しょうがない
-      }
+      return await fsPromises.readFile(filePath, "utf8");
+    } catch {
+      continue;
     }
   }
-  // If the file is not found in any folder, return null or handle accordingly
   return null;
 };
 /**
@@ -329,50 +326,35 @@ export const getGraphData = async (id: string) => {
 
   const outNodeList = canonicalComposition[normalizedId].out;
 
-  const inNodes = await Promise.all(
-    inNodeList.map(async (x) => {
-      return {
-        id: x,
-        data: await getKanjiDataLocal(x),
-      };
-    })
-  );
-
-  const outNodes = await Promise.all(
-    outNodeList.map(async (x) => {
-      return {
-        id: x,
-        data: await getKanjiDataLocal(x),
-      };
-    })
-  );
+  const [inNodes, outNodes] = await Promise.all([
+    Promise.all(
+      inNodeList.map(async (x) => {
+        return {
+          id: x,
+          data: await getKanjiDataLocal(x),
+        };
+      })
+    ),
+    Promise.all(
+      outNodeList.map(async (x) => {
+        return {
+          id: x,
+          data: await getKanjiDataLocal(x),
+        };
+      })
+    ),
+  ]);
 
   const allNodes = inNodes.concat(outNodes);
   const allLinks = inLinks.concat(outLinks);
 
   const withOutLinks: GraphData = {
-    nodes: allNodes.filter(
-      (value, index, self) => index === self.findIndex((t) => t.id === value.id)
-    ),
-    links: allLinks.filter(
-      (value, index, self) =>
-        index ===
-        self.findIndex(
-          (t) => t.source === value.source && t.target === value.target
-        )
-    ),
+    nodes: uniqueNodesById(allNodes),
+    links: uniqueLinks(allLinks),
   };
   const noOutLinks: GraphData = {
-    nodes: inNodes.filter(
-      (value, index, self) => index === self.findIndex((t) => t.id === value.id)
-    ),
-    links: inLinks.filter(
-      (value, index, self) =>
-        index ===
-        self.findIndex(
-          (t) => t.source === value.source && t.target === value.target
-        )
-    ),
+    nodes: uniqueNodesById(inNodes),
+    links: uniqueLinks(inLinks),
   };
 
   return { withOutLinks, noOutLinks };

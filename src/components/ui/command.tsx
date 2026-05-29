@@ -63,15 +63,14 @@ function CommandDialog({
   );
 }
 
-const CommandInput = React.forwardRef<
-  React.ElementRef<typeof CommandPrimitive.Input>,
-  React.ComponentPropsWithoutRef<typeof CommandPrimitive.Input>
->(({ className, ...props }, ref) => {
+function CommandInput({
+  className,
+  ...props
+}: React.ComponentPropsWithRef<typeof CommandPrimitive.Input>) {
   return (
     <div data-slot="command-input-wrapper" className="p-1 pb-0">
       <InputGroup className="bg-input/30 border-input/30 h-8! rounded-lg! shadow-none! *:data-[slot=input-group-addon]:pl-2!">
         <CommandPrimitive.Input
-          ref={ref}
           data-slot="command-input"
           className={cn(
             "w-full text-sm outline-hidden disabled:cursor-not-allowed disabled:opacity-50",
@@ -85,8 +84,7 @@ const CommandInput = React.forwardRef<
       </InputGroup>
     </div>
   );
-});
-CommandInput.displayName = CommandPrimitive.Input.displayName;
+}
 
 function CommandList({
   className,
@@ -185,12 +183,8 @@ function CommandShortcut({
 
 export {
   Command,
-  CommandDialog,
   CommandInput,
   CommandList,
   CommandEmpty,
-  CommandGroup,
   CommandItem,
-  CommandShortcut,
-  CommandSeparator,
 };

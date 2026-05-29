@@ -67,9 +67,10 @@ const main = async (): Promise<void> => {
   console.log("Starting preprocess pipeline...");
   console.log(`Working directory: ${preprocessDir}`);
 
-  for (const step of steps) {
-    await runStep(step);
-  }
+  await steps.reduce<Promise<void>>(
+    (previousStep, step) => previousStep.then(() => runStep(step)),
+    Promise.resolve()
+  );
 
   console.log("\nPreprocess pipeline completed successfully.");
 };

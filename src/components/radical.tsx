@@ -2,12 +2,31 @@
 
 import * as React from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { buildKanjiHref } from "@/lib/kanji-routing";
 import { resolveKanjiId } from "@/lib/kanji-variants";
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import RadicalImages from "./radical-images";
+import { RadicalImages } from "./radical-images";
 import radicallist from "../../data/radicallist.json";
+
+const POSITION_NAME_PATTERNS = [
+  ["ashi", /ashi/],
+  ["gyougamae", /gyougamae/],
+  ["hakogamae", /hakogamae/],
+  ["hen", /hen/],
+  ["kanmuri", /kanmuri/],
+  ["keigamae", /keigamae/],
+  ["kigamae", /kigamae/],
+  ["kunigamae", /kunigamae/],
+  ["mongamae", /mongamae/],
+  ["nyou", /nyou/],
+  ["tare", /tare/],
+  ["tsukuri", /tsukuri/],
+  ["tsutsumigamae", /tsutsumigamae/],
+] as const;
+
+type PositionName = (typeof POSITION_NAME_PATTERNS)[number][0];
 
 interface Props {
   kanjiInfo: KanjiInfo | null;
@@ -18,25 +37,6 @@ export const Radical: React.FC<Props> = ({
   kanjiInfo,
   navigableRadicalIds,
 }) => {
-  // Hardcoded list of available position SVG basenames (from data/radical-positions/*.svg)
-  const POSITION_NAMES = [
-    "ashi",
-    "gyougamae",
-    "hakogamae",
-    "hen",
-    "kanmuri",
-    "keigamae",
-    "kigamae",
-    "kunigamae",
-    "mongamae",
-    "nyou",
-    "tare",
-    "tsukuri",
-    "tsutsumigamae",
-  ] as const;
-
-  type PositionName = (typeof POSITION_NAMES)[number];
-
   const normalizeRadicalChar = React.useCallback((value?: string | null) => {
     return value?.normalize("NFKC").trim() ?? "";
   }, []);
@@ -65,8 +65,8 @@ export const Radical: React.FC<Props> = ({
     (pos?: string | null): PositionName | null => {
       if (!pos) return null;
       const lower = pos.toLowerCase();
-      for (const name of POSITION_NAMES) {
-        if (lower.includes(name)) return name;
+      for (const [name, pattern] of POSITION_NAME_PATTERNS) {
+        if (pattern.test(lower)) return name;
       }
       return null;
     },
@@ -134,7 +134,7 @@ export const Radical: React.FC<Props> = ({
   return (
     <div className="min-h-[330px] relative w-full h-full overflow-hidden grid grid-rows-[36px_100px_1fr] grid-cols-[120px_1fr]">
       <div>
-        <h3 className="text-lg font-extrabold">Radical</h3>
+        <h3 className="text-lg font-semibold">Radical</h3>
       </div>
       <div className="pt-2 w-full h-full overflow-hidden text-sm leading-6 row-span-3">
         {kanjiInfo?.jishoData?.radical?.symbol && (
@@ -183,10 +183,11 @@ export const Radical: React.FC<Props> = ({
                     {alt.posName && (
                       <>
                         <span>(</span>
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img
+                        <Image
                           alt={`alt radical position ${alt.posName}`}
                           src={`/radical-positions/${alt.posName}.svg`}
+                          width={16}
+                          height={16}
                           className="inline-block size-4 align-middle"
                         />
                         <span>)</span>
@@ -242,7 +243,7 @@ export const Radical: React.FC<Props> = ({
           <h1 className="text-6xl leading-tight sm:text-5xl">{baseRadicalChar}</h1>
         )}
       </div>
-      <div className="place-self-center w-20 h-20 relative overflow-hidden">
+      <div className="place-self-center size-20 relative overflow-hidden">
         {kanjiInfo?.kanjialiveData?.radical?.animation && (
           <RadicalImages
             radicalImageArray={kanjiInfo?.kanjialiveData?.radical?.animation}

@@ -15,21 +15,25 @@ function PopoverTrigger({ ...props }: PopoverPrimitive.Trigger.Props) {
 
 function PopoverContent({
   className,
+  anchor,
   align = "center",
   alignOffset = 0,
+  collisionPadding,
   side = "bottom",
   sideOffset = 4,
   ...props
 }: PopoverPrimitive.Popup.Props &
   Pick<
     PopoverPrimitive.Positioner.Props,
-    "align" | "alignOffset" | "side" | "sideOffset"
+    "align" | "alignOffset" | "anchor" | "collisionPadding" | "side" | "sideOffset"
   >) {
   return (
     <PopoverPrimitive.Portal>
       <PopoverPrimitive.Positioner
+        anchor={anchor}
         align={align}
         alignOffset={alignOffset}
+        collisionPadding={collisionPadding}
         side={side}
         sideOffset={sideOffset}
         className="isolate z-50"
@@ -83,8 +87,5 @@ function PopoverDescription({
 export {
   Popover,
   PopoverContent,
-  PopoverDescription,
-  PopoverHeader,
-  PopoverTitle,
   PopoverTrigger,
 }

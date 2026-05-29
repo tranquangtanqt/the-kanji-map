@@ -1,6 +1,6 @@
 import { resolveKanjiId } from "@/lib/kanji-variants";
 
-export const MOBILE_TAB_KEYS = [
+const MOBILE_TAB_KEYS = [
   "kanji",
   "radical",
   "examples",
@@ -12,7 +12,7 @@ export type MobileTabKey = (typeof MOBILE_TAB_KEYS)[number];
 
 export const MOBILE_TAB_PARAM = "tab";
 
-export const isMobileTabKey = (value: string): value is MobileTabKey =>
+const isMobileTabKey = (value: string): value is MobileTabKey =>
   MOBILE_TAB_KEYS.includes(value as MobileTabKey);
 
 export const getMobileTabKey = (index: number): MobileTabKey =>

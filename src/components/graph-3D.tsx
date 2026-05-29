@@ -37,6 +37,167 @@ export const dynamic = "force-dynamic";
 
 const KANJI_SPRITE_OFFSET_Y = 2.0;
 
+const KANJI_GROUPS = kanjilist.reduce(
+  (groups, entry) => {
+    if (entry.g === 1) {
+      groups.joyo.add(entry.k);
+    } else if (entry.g === 2) {
+      groups.jinmeiyo.add(entry.k);
+    }
+
+    return groups;
+  },
+  {
+    joyo: new Set<string>(),
+    jinmeiyo: new Set<string>(),
+  },
+);
+
+const getNodeDefaultColor = (nodeId: string, selectedId: string) => {
+  if (nodeId === selectedId) {
+    return NODE_SELECTED;
+  }
+  if (KANJI_GROUPS.joyo.has(String(nodeId))) {
+    return NODE_JOYO;
+  }
+  if (KANJI_GROUPS.jinmeiyo.has(String(nodeId))) {
+    return NODE_JINMEIYO;
+  }
+
+  return NODE_OTHER;
+};
+
+const resetNodeColor = (node: any, selectedId: string) => {
+  const defaultColor = getNodeDefaultColor(node.id, selectedId);
+  if (node?.__threeObj?.children[1]?.material?.color) {
+    node.__threeObj.children[1].material.color.set(defaultColor);
+  }
+};
+
+const highlightNode = (node: any) => {
+  if (node?.__threeObj?.children[1]?.material?.color) {
+    const color = node.__threeObj.children[1].material.color;
+    node.__threeObj.children[1].material.color.setRGB(
+      color.r * 0.8,
+      color.g * 0.8,
+      color.b * 0.8,
+    );
+  }
+};
+
+const getSharedOnyomi = (data: GraphData | null, kanji1: string, kanji2: string) => {
+  const k1 = data?.nodes?.find((o) => o?.id === kanji1) as NodeObjectWithData;
+  const k2 = data?.nodes?.find((o) => o?.id === kanji2) as NodeObjectWithData;
+  const on1: string[] = k1?.data?.jishoData?.onyomi;
+  const on2: string[] = k2?.data?.jishoData?.onyomi;
+  return on1?.filter((value) => on2?.includes(value)) ?? "";
+};
+
+const getLinkDirectionalArrowRelPos = ({ source, target }: LinkObject) => {
+  if (
+    typeof source === "object" &&
+    typeof target === "object" &&
+    source.x &&
+    target.x &&
+    source.y &&
+    target.y &&
+    source.z &&
+    target.z
+  ) {
+    const linkLength = Math.hypot(
+      target.x - source.x,
+      target.y - source.y,
+      target.z - source.z,
+    );
+    return (linkLength - 8) / linkLength;
+  }
+
+  return 0.8;
+};
+
+const getNodeLabel = (n: NodeObject, enableNodePreview: boolean) => {
+  if (enableNodePreview) {
+    return "";
+  }
+
+  const node = n as NodeObjectWithData;
+  if (!node.data || !node.data.jishoData) {
+    return "";
+  }
+
+  const kunyomi = node.data.jishoData?.kunyomi;
+  const meaning = node.data.jishoData?.meaning;
+  if ((!kunyomi || kunyomi.length === 0) && (!meaning || meaning === "")) {
+    return "";
+  }
+
+  return `<div style="color: #ffffff; background: #000000a6; padding: 4px; border-radius: 4px;">
+            <span>${kunyomi || ""}</span>
+            <br/>
+            <span>${meaning || ""}</span>
+          </div>
+         `;
+};
+
+const createNodeThreeObject = (node: NodeObject, selectedId: string) => {
+  const ball = new THREE.Mesh(
+    new THREE.SphereGeometry(8, 32, 32),
+    new THREE.MeshLambertMaterial({
+      color: getNodeDefaultColor(String(node.id), selectedId),
+      transparent: true,
+      depthWrite: false,
+      opacity: 0.8,
+    }),
+  );
+
+  const sprite = new SpriteText(String(node.id));
+  sprite.fontFace =
+    "Iowan Old Style, Apple Garamond, Baskerville, Times New Roman, Droid Serif, Times, Source Serif Pro, serif";
+  sprite.color = "#000";
+  sprite.textHeight = 10;
+  sprite.fontSize = 120;
+  sprite.padding = 3;
+  sprite.offsetY = KANJI_SPRITE_OFFSET_Y;
+
+  const group = new THREE.Group();
+  group.add(sprite);
+  group.add(ball);
+  return group;
+};
+
+const createLinkThreeObject = (
+  link: LinkObject,
+  data: GraphData | null,
+  resolvedTheme: string | undefined,
+) => {
+  const source = typeof link.source === "object" ? link.source.id : link.source;
+  const target = typeof link.target === "object" ? link.target.id : link.target;
+  const linkText = getSharedOnyomi(data, String(source), String(target));
+
+  if (!linkText || linkText.length === 0) {
+    return null;
+  }
+
+  const sprite = new SpriteText(linkText.join(", "));
+  sprite.color = resolvedTheme === "dark" ? "#ffffff" : "#000000";
+  sprite.textHeight = 6;
+  return sprite;
+};
+
+const updateLinkPosition = (
+  sprite: THREE.Object3D | SpriteText | null | undefined,
+  { start, end }: { start: { x: number; y: number; z: number }; end: { x: number; y: number; z: number } },
+) => {
+  const middlePos = {
+    x: start.x + (end.x - start.x) / 2,
+    y: start.y + (end.y - start.y) / 2,
+    z: start.z + (end.z - start.z) / 2,
+  };
+
+  sprite?.position && Object.assign(sprite.position, middlePos);
+  return null;
+};
+
 const Graph3D = ({
   kanjiInfo,
   graphData,
@@ -50,15 +211,32 @@ const Graph3D = ({
   onPreviewNode,
   onClosePreview,
 }: Props) => {
-  if (!graphData || !kanjiInfo) return <></>;
-
-  const joyoList = kanjilist.filter((el) => el.g === 1).map((el) => el.k);
-  const jinmeiyoList = kanjilist.filter((el) => el.g === 2).map((el) => el.k);
-
   const { resolvedTheme } = useTheme();
+  const { push, prefetch } = useRouter();
 
   const fg3DRef: React.MutableRefObject<ForceGraphMethods | undefined> =
     React.useRef(undefined);
+
+  const data = React.useMemo<GraphData | null>(
+    () => (showOutLinks ? graphData?.withOutLinks : graphData?.noOutLinks) ?? null,
+    [graphData?.noOutLinks, graphData?.withOutLinks, showOutLinks],
+  );
+
+  const buildNodeHref = React.useCallback(
+    (id: string) =>
+      buildKanjiHref(id, {
+        tab: navigationTab ?? null,
+      }),
+    [navigationTab],
+  );
+
+  const debounce = React.useCallback((func: (...args: any[]) => void, wait: number) => {
+    let timeout: NodeJS.Timeout;
+    return (...args: any[]) => {
+      clearTimeout(timeout);
+      timeout = setTimeout(() => func(...args), wait);
+    };
+  }, []);
 
   React.useEffect(() => {
     return () => {
@@ -68,27 +246,6 @@ const Graph3D = ({
       }
     };
   }, []);
-
-  const router = useRouter();
-
-  const [data, setData] = React.useState<GraphData | null>({
-    nodes: [],
-    links: [],
-  });
-
-  React.useEffect(() => {
-    setData(showOutLinks ? graphData?.withOutLinks : graphData?.noOutLinks);
-  }, [graphData?.withOutLinks, graphData?.noOutLinks, showOutLinks]);
-
-  // const data = graphData?.withOutLinks;
-
-  const buildNodeHref = React.useCallback(
-    (id: string) =>
-      buildKanjiHref(id, {
-        tab: navigationTab ?? null,
-      }),
-    [navigationTab],
-  );
 
   const handleClick = (node: NodeObject) => {
     const nodeId = String(node?.id);
@@ -101,15 +258,15 @@ const Graph3D = ({
       return;
     }
 
-    void router.push(buildNodeHref(nodeId));
+    void push(buildNodeHref(nodeId));
   };
 
   // prefetch routes for nodes visible in the graph
   React.useEffect(() => {
     data?.nodes?.forEach((node) => {
-      void router.prefetch(buildNodeHref(String(node.id)));
+      void prefetch(buildNodeHref(String(node.id)));
     });
-  }, [buildNodeHref, data, router]);
+  }, [buildNodeHref, data, prefetch]);
 
   React.useEffect(() => {
     const controls = fg3DRef?.current?.controls();
@@ -152,14 +309,6 @@ const Graph3D = ({
     };
   }, [data, kanjiInfo.id, triggerFocus]);
 
-  const debounce = (func: (...args: any[]) => void, wait: number) => {
-    let timeout: NodeJS.Timeout;
-    return (...args: any[]) => {
-      clearTimeout(timeout);
-      timeout = setTimeout(() => func(...args), wait);
-    };
-  };
-
   const debounceResumeAutoRotate = debounce((node: any) => {
     if (autoRotate && fg3DRef?.current) {
       // @ts-ignore
@@ -176,55 +325,13 @@ const Graph3D = ({
     }
 
     // Reset the previous node's color to its default
-    if (prevNode) resetNodeColor(prevNode);
+    if (prevNode) resetNodeColor(prevNode, kanjiInfo.id);
 
     // Apply hover effect to the currently hovered node
     if (node) highlightNode(node);
   };
 
-  // Function to reset a node's color to its default
-  const resetNodeColor = (node: any) => {
-    const defaultColor = getNodeDefaultColor(node.id);
-    if (node?.__threeObj?.children[1]?.material?.color) {
-      node.__threeObj.children[1].material.color.set(defaultColor);
-    }
-  };
-
-  // Function to highlight the currently hovered node
-  const highlightNode = (node: any) => {
-    if (node?.__threeObj?.children[1]?.material?.color) {
-      // Slightly darken the node's current color for hover effect
-      const color = node.__threeObj.children[1].material.color;
-      node.__threeObj.children[1].material.color.setRGB(
-        color.r * 0.8,
-        color.g * 0.8,
-        color.b * 0.8,
-      );
-    }
-  };
-
-  // Get default node color based on its type
-  const getNodeDefaultColor = (nodeId: string) => {
-    if (nodeId === kanjiInfo.id) {
-      return NODE_SELECTED;
-    } else if (joyoList.includes(String(nodeId))) {
-      return NODE_JOYO;
-    } else if (jinmeiyoList.includes(String(nodeId))) {
-      return NODE_JINMEIYO;
-    }
-    return NODE_OTHER;
-  };
-
-  // find same onyomi
-  const sameOn = (kanji1: string, kanji2: string) => {
-    const k1 = data?.nodes?.find((o) => o?.id === kanji1) as NodeObjectWithData;
-    const k2 = data?.nodes?.find((o) => o?.id === kanji2) as NodeObjectWithData;
-    const on1: string[] = k1?.data?.jishoData?.onyomi;
-    const on2: string[] = k2?.data?.jishoData?.onyomi;
-    return on1?.filter((value) => on2?.includes(value)) ?? "";
-  };
-
-  if (!data) return <></>;
+  if (!graphData || !kanjiInfo || !data) return <></>;
 
   return (
     <ForceGraph3D
@@ -237,27 +344,7 @@ const Graph3D = ({
         return resolvedTheme === "dark" ? "#ffffff" : "#000000";
       }}
       linkDirectionalArrowLength={5}
-      linkDirectionalArrowRelPos={({ source, target }) => {
-        if (
-          typeof source === "object" &&
-          typeof target === "object" &&
-          source.x &&
-          target.x &&
-          source.y &&
-          target.y &&
-          source.z &&
-          target.z
-        ) {
-          const linkLength = Math.hypot(
-            target.x - source.x,
-            target.y - source.y,
-            target.z - source.z,
-          );
-          return (linkLength - 8) / linkLength;
-        } else {
-          return 0.8;
-        }
-      }}
+      linkDirectionalArrowRelPos={getLinkDirectionalArrowRelPos}
       linkDirectionalArrowResolution={8}
       linkDirectionalParticles={3}
       linkDirectionalParticleSpeed={0.004}
@@ -275,100 +362,13 @@ const Graph3D = ({
         }
       }}
       onNodeHover={handleHover}
-      nodeLabel={(n) => {
-        if (enableNodePreview) {
-          return "";
-        }
-
-        const node = n as NodeObjectWithData;
-        if (!node.data || !node.data.jishoData) {
-          return "";
-        }
-        const kunyomi = node.data.jishoData?.kunyomi;
-        const meaning = node.data.jishoData?.meaning;
-        // Don't show tooltip if both kunyomi and meaning are empty
-        if (
-          (!kunyomi || kunyomi.length === 0) &&
-          (!meaning || meaning === "")
-        ) {
-          return "";
-        }
-        return `<div style="color: #ffffff; background: #000000a6; padding: 4px; border-radius: 4px;">
-                  <span>${kunyomi || ""}</span>
-                  <br/>
-                  <span>${meaning || ""}</span>
-                </div>
-               `;
-      }}
-      nodeThreeObject={(node: NodeObject) => {
-        let color;
-        // if it is he main node
-        if (node.id === kanjiInfo.id) {
-          color = NODE_SELECTED;
-        } else if (joyoList?.includes(String(node.id))) {
-          color = NODE_JOYO;
-        } else if (jinmeiyoList?.includes(String(node.id))) {
-          color = NODE_JINMEIYO;
-        } else {
-          color = NODE_OTHER;
-        }
-
-        const ball = new THREE.Mesh(
-          new THREE.SphereGeometry(8, 32, 32),
-          new THREE.MeshLambertMaterial({
-            color: color,
-            transparent: true,
-            depthWrite: false,
-            opacity: 0.8,
-          }),
-        );
-
-        // If it's a single character
-        const sprite = new SpriteText(String(node.id));
-        sprite.fontFace =
-          "Iowan Old Style, Apple Garamond, Baskerville, Times New Roman, Droid Serif, Times, Source Serif Pro, serif";
-        sprite.color = "#000";
-        sprite.textHeight = 10;
-        sprite.fontSize = 120;
-        sprite.padding = 3;
-        sprite.offsetY = KANJI_SPRITE_OFFSET_Y;
-
-        const group = new THREE.Group();
-        group.add(sprite);
-        group.add(ball);
-        return group;
-      }}
+      nodeLabel={(node) => getNodeLabel(node, enableNodePreview)}
+      nodeThreeObject={(node: NodeObject) => createNodeThreeObject(node, kanjiInfo.id)}
       // ADD ONYOMI TO LINKS
       linkThreeObjectExtend={true}
       // @ts-ignore
-      linkThreeObject={(link: LinkObject) => {
-        const source =
-          typeof link.source === "object" ? link.source.id : link.source;
-        const target =
-          typeof link.target === "object" ? link.target.id : link.target;
-
-        const linkText = sameOn(String(source), String(target));
-
-        let sprite: SpriteText;
-        if (linkText && linkText.length > 0) {
-          sprite = new SpriteText(linkText.join(", "));
-        } else {
-          return null;
-        }
-        sprite.color = resolvedTheme === "dark" ? "#ffffff" : "#000000";
-        sprite.textHeight = 6;
-        return sprite;
-      }}
-      linkPositionUpdate={(sprite, { start, end }) => {
-        const middlePos: { x: number; y: number; z: number } = {
-          x: start.x + (end.x - start.x) / 2,
-          y: start.y + (end.y - start.y) / 2,
-          z: start.z + (end.z - start.z) / 2,
-        };
-        // if there is a same onyomi link
-        sprite?.position && Object.assign(sprite.position, middlePos);
-        return null;
-      }}
+      linkThreeObject={(link: LinkObject) => createLinkThreeObject(link, data, resolvedTheme)}
+      linkPositionUpdate={updateLinkPosition}
     />
   );
 };

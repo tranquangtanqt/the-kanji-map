@@ -4,6 +4,12 @@ import { MobileLayout } from "@/components/mobile-layout";
 import { SearchInput } from "@/components/search-input";
 import { SearchIcon } from "lucide-react";
 
+export const metadata = {
+  title: "The Kanji Map",
+  description:
+    "Explore kanji decomposition, readings, radicals, and examples in an interactive graph.",
+};
+
 export default function Home() {
   return (
     <div className="size-full flex flex-col">
@@ -41,7 +47,7 @@ export default function Home() {
             {
               id: 4,
               label: (
-                <SearchIcon className="w-4 h-4 inline-block -translate-y-0.5" />
+                <SearchIcon className="size-4 inline-block -translate-y-0.5" />
               ),
               content: (
                 <div className="relative mt-8 p-4 flex flex-col items-center gap-12">
@@ -63,18 +69,18 @@ export default function Home() {
             <DrawInput />
           </div>
           <div className="p-4 border-l">
-            <h1 className="text-lg font-extrabold">Kanji</h1>
+            <h1 className="text-lg font-semibold">Kanji</h1>
           </div>
           <div className="p-4 border-l">
-            <h1 className="text-lg font-extrabold">Radical</h1>
+            <h1 className="text-lg font-semibold">Radical</h1>
           </div>
         </div>
         <div className="bottom grid grid-cols-[2fr_3fr] overflow-hidden">
           <div className="p-4">
-            <h1 className="text-lg font-extrabold">Examples</h1>
+            <h1 className="text-lg font-semibold">Examples</h1>
           </div>
           <div className="p-4 border-l">
-            <h1 className="text-lg font-extrabold">Graph</h1>
+            <h1 className="text-lg font-semibold">Graph</h1>
           </div>
         </div>
       </div>

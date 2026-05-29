@@ -58,7 +58,6 @@ const particlesAtom = atom(
 );
 
 export {
-  graphPreferenceAtom,
   styleAtom,
   rotateAtom,
   outLinksAtom,

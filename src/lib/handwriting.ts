@@ -40,9 +40,15 @@ class HandwritingCanvas {
     this.canvas.addEventListener("mousedown", this.onPointerDown.bind(this));
     this.canvas.addEventListener("mousemove", this.onPointerMove.bind(this));
     this.canvas.addEventListener("mouseup", this.onPointerUp.bind(this));
-    this.canvas.addEventListener("touchstart", this.onTouchStart.bind(this));
-    this.canvas.addEventListener("touchmove", this.onTouchMove.bind(this));
-    this.canvas.addEventListener("touchend", this.onTouchEnd.bind(this));
+    this.canvas.addEventListener("touchstart", this.onTouchStart.bind(this), {
+      passive: true,
+    });
+    this.canvas.addEventListener("touchmove", this.onTouchMove.bind(this), {
+      passive: true,
+    });
+    this.canvas.addEventListener("touchend", this.onTouchEnd.bind(this), {
+      passive: true,
+    });
   }
 
   public getTrace() {

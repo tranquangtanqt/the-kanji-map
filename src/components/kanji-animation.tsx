@@ -11,12 +11,12 @@ type Props = {
 const SVG_STROKE_LENGTH = 3337; // Default path length for each stroke.
 
 export function KanjiStrokeAnimation({ svgContent, strokeCount }: Props) {
-  const svgContainerRef = React.useRef<HTMLDivElement>(null);
+  const svgContainerRef = React.useRef<HTMLButtonElement>(null);
   const [isPlaying, setIsPlaying] = React.useState(true);
   const [drawProgress, setDrawProgress] = React.useState(0);
-  const [isUserSeeking, setIsUserSeeking] = React.useState(false);
+  const isUserSeeking = React.useRef(false);
   const totalLength = SVG_STROKE_LENGTH * (strokeCount || 0);
-  const [svgInjected, setSvgInjected] = React.useState(false);
+  const svgInjected = React.useRef(false);
 
   // Modify the SVG content to remove default animation
   const modifiedSvgContent = React.useMemo(() => {
@@ -29,22 +29,26 @@ export function KanjiStrokeAnimation({ svgContent, strokeCount }: Props) {
 
   // only inject the modified SVG once
   React.useEffect(() => {
-    if (svgContainerRef.current && !svgInjected) {
+    if (svgContainerRef.current && !svgInjected.current) {
       svgContainerRef.current.innerHTML = modifiedSvgContent;
-      setSvgInjected(true);
+      svgInjected.current = true;
     }
-  }, [modifiedSvgContent, svgInjected]);
+  }, [modifiedSvgContent]);
 
   // Animation loop
   React.useEffect(() => {
-    if (!isPlaying || !strokeCount || isUserSeeking || totalLength === 0)
-      return;
+    if (!isPlaying || !strokeCount || totalLength === 0) return;
 
     let frame: number;
     const FRAMES_PER_STROKE = 2 * 60; // 2s per stroke at 60fps
     const totalFrames = strokeCount * FRAMES_PER_STROKE;
     const INCREMENT = totalLength / totalFrames;
     const animate = () => {
+      if (isUserSeeking.current) {
+        frame = requestAnimationFrame(animate);
+        return;
+      }
+
       setDrawProgress((prev) => {
         const next = prev + INCREMENT;
         if (next >= totalLength) {
@@ -56,7 +60,7 @@ export function KanjiStrokeAnimation({ svgContent, strokeCount }: Props) {
     };
     frame = requestAnimationFrame(animate);
     return () => cancelAnimationFrame(frame);
-  }, [isPlaying, isUserSeeking, totalLength]);
+  }, [isPlaying, strokeCount, totalLength]);
 
   // Update the stroke dash offset based on drawProgress to control animation progress
   React.useEffect(() => {
@@ -91,14 +95,23 @@ export function KanjiStrokeAnimation({ svgContent, strokeCount }: Props) {
     setDrawProgress(0);
   };
 
-  const handleSliderMouseDown = () => setIsUserSeeking(true);
-  const handleSliderMouseUp = () => setIsUserSeeking(false);
-  const handleSliderTouchStart = () => setIsUserSeeking(true);
-  const handleSliderTouchEnd = () => setIsUserSeeking(false);
+  const handleSliderMouseDown = () => {
+    isUserSeeking.current = true;
+  };
+  const handleSliderMouseUp = () => {
+    isUserSeeking.current = false;
+  };
+  const handleSliderTouchStart = () => {
+    isUserSeeking.current = true;
+  };
+  const handleSliderTouchEnd = () => {
+    isUserSeeking.current = false;
+  };
 
   return (
     <div className="kanji-svg-container flex flex-col items-center">
-      <div
+      <button
+        type="button"
         ref={svgContainerRef}
         className="kanji-stroke-svg cursor-pointer"
         onClick={handleSvgClick}

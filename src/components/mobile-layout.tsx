@@ -6,7 +6,7 @@ import {
   type CarouselApi,
 } from "@/components/ui/carousel";
 import { cn } from "@/lib/utils";
-import { motion } from "framer-motion";
+import { LazyMotion, domAnimation, m } from "framer-motion";
 
 import * as React from "react";
 
@@ -31,21 +31,16 @@ export const MobileLayout = ({
 }) => {
   const [api, setApi] = React.useState<CarouselApi>();
   const isControlled = typeof controlledActiveTab === "number";
-  const [internalActiveTab, setInternalActiveTab] =
-    React.useState(initialActiveTab);
-  const activeTab = isControlled ? controlledActiveTab : internalActiveTab;
+  const [internalActiveTab, setInternalActiveTab] = React.useState<number | null>(null);
+  const activeTab = isControlled
+    ? controlledActiveTab
+    : internalActiveTab ?? initialActiveTab;
   const initialCarouselTab = React.useRef(activeTab);
   const activeTabRef = React.useRef(activeTab);
 
   React.useEffect(() => {
     activeTabRef.current = activeTab;
   }, [activeTab]);
-
-  React.useEffect(() => {
-    if (!isControlled) {
-      setInternalActiveTab(initialActiveTab);
-    }
-  }, [initialActiveTab, isControlled]);
 
   const setActiveTab = React.useCallback(
     (nextTab: number) => {
@@ -75,7 +70,7 @@ export const MobileLayout = ({
     const handleSelect = () => {
       const nextTab = api.selectedScrollSnap();
 
-      if (nextTab !== activeTab) {
+      if (nextTab !== activeTabRef.current) {
         setActiveTab(nextTab);
       }
     };
@@ -96,19 +91,20 @@ export const MobileLayout = ({
 
   return (
     <div className="size-full overflow-hidden">
-      <Carousel
-        setApi={setApi}
-        className="size-full pb-10"
-        opts={{ watchDrag: false, startIndex: initialCarouselTab.current }}
-      >
-        <CarouselContent className="relative size-full">
-          {tabs.map((tab) => (
-            <CarouselItem key={tab.id} className="min-h-full">
-              {tab.content}
-            </CarouselItem>
-          ))}
-        </CarouselContent>
-      </Carousel>
+      <LazyMotion features={domAnimation}>
+        <Carousel
+          setApi={setApi}
+          className="size-full pb-10"
+          opts={{ watchDrag: false, startIndex: initialCarouselTab.current }}
+        >
+          <CarouselContent className="relative size-full">
+            {tabs.map((tab) => (
+              <CarouselItem key={tab.id} className="min-h-full">
+                {tab.content}
+              </CarouselItem>
+            ))}
+          </CarouselContent>
+        </Carousel>
       <div
         className={cn(
           "absolute bg-background bottom-0 space-x-1 border-t cursor-pointer px-[3px] py-[3.2px] shadow-inner-shadow w-full grid grid-cols-5 shrink-0"
@@ -126,7 +122,7 @@ export const MobileLayout = ({
             style={{ WebkitTapHighlightColor: "transparent" }}
           >
             {activeTab === idx && (
-              <motion.span
+              <m.span
                 layoutId="bubble"
                 className="absolute inset-0 z-10 bg-muted/50 mix-blend-screen shadow-inner-shadow border rounded-md"
                 transition={{ type: "spring", bounce: 0.19, duration: 0.4 }}
@@ -136,6 +132,7 @@ export const MobileLayout = ({
           </button>
         ))}
       </div>
+      </LazyMotion>
     </div>
   );
 };

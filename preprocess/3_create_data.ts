@@ -269,7 +269,7 @@ const getJishoDataWithRetry = async (
     requestTimeoutMs = REQUEST_TIMEOUT_MS,
   }: RetryOptions = {}
 ): Promise<any> => {
-  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+  const attemptFetch = async (attempt: number): Promise<any> => {
     try {
       const jishoData = await withTimeout(
         jisho.searchForKanji(id),
@@ -296,7 +296,7 @@ const getJishoDataWithRetry = async (
             }/${maxRetries})`
           );
           await sleep(delay);
-          continue;
+          return attemptFetch(attempt + 1);
         }
       }
 
@@ -306,11 +306,13 @@ const getJishoDataWithRetry = async (
         )}`
       );
     }
-  }
 
-  throw new Error(
-    `Failed to fetch Jisho data for ${id}: retry loop exited unexpectedly`
-  );
+    throw new Error(
+      `Failed to fetch Jisho data for ${id}: retry loop exited unexpectedly`
+    );
+  };
+
+  return attemptFetch(0);
 };
 
 const fetchJishoDataOrFallback = async (
@@ -367,49 +369,70 @@ const writeKanjiData = async (
   }
 };
 
+const runFailedKanjiRetryPass = async (
+  remainingFailures: FailedKanji[],
+  kanjialiveMap: Map<string, any>,
+  dataDir: string,
+  retryPass: RetryPass
+): Promise<FailedKanji[]> => {
+  const retryResults = await Promise.all(
+    remainingFailures.map(async ({ id }) =>
+      writeKanjiData(id, kanjialiveMap, dataDir, retryPass)
+    )
+  );
+
+  return retryResults.filter(
+    (failure): failure is FailedKanji => failure !== null
+  );
+};
+
 const retryFailedKanjiWrites = async (
   failedKanji: FailedKanji[],
   kanjialiveMap: Map<string, any>,
   dataDir: string
 ): Promise<FailedKanji[]> => {
-  let remainingFailures = failedKanji;
-
-  for (let i = 0; i < FINAL_RETRY_PASSES.length; i++) {
-    if (remainingFailures.length === 0) {
-      break;
+  const retryPasses = async (
+    passIndex: number,
+    remainingFailures: FailedKanji[]
+  ): Promise<FailedKanji[]> => {
+    if (remainingFailures.length === 0 || passIndex >= FINAL_RETRY_PASSES.length) {
+      return remainingFailures;
     }
 
-    const retryPass = FINAL_RETRY_PASSES[i];
+    const retryPass = FINAL_RETRY_PASSES[passIndex];
     console.log(
-      `\n🔁 Retry pass ${i + 1}/${FINAL_RETRY_PASSES.length} for ${
+      `\n🔁 Retry pass ${passIndex + 1}/${FINAL_RETRY_PASSES.length} for ${
         remainingFailures.length
       } kanji (${retryPass.label})...`
     );
 
-    const nextFailures: FailedKanji[] = [];
-    for (const { id } of remainingFailures) {
-      const failure = await writeKanjiData(id, kanjialiveMap, dataDir, retryPass);
-      if (failure) {
-        nextFailures.push(failure);
-      }
-    }
+    const nextFailures = await runFailedKanjiRetryPass(
+      remainingFailures,
+      kanjialiveMap,
+      dataDir,
+      retryPass
+    );
 
     console.log(
       `Recovered ${remainingFailures.length - nextFailures.length}/${
         remainingFailures.length
-      } failed kanji on retry pass ${i + 1}`
+      } failed kanji on retry pass ${passIndex + 1}`
     );
-    remainingFailures = nextFailures;
 
-    if (remainingFailures.length > 0 && i < FINAL_RETRY_PASSES.length - 1) {
+    if (
+      nextFailures.length > 0 &&
+      passIndex < FINAL_RETRY_PASSES.length - 1
+    ) {
       console.log(
         `⏸ Cooling down for ${RETRY_PASS_COOLDOWN_MS}ms before the next retry pass...`
       );
       await sleep(RETRY_PASS_COOLDOWN_MS);
     }
-  }
 
-  return remainingFailures;
+    return retryPasses(passIndex + 1, nextFailures);
+  };
+
+  return retryPasses(0, failedKanji);
 };
 
 // Process kanji in batches
@@ -430,7 +453,11 @@ const processBatch = async (
   const removedCount = removeStaleKanjiJsonFiles(dataDir, kanjiList);
   console.log(`🧹 Removed ${removedCount} stale kanji JSON file(s)`);
 
-  for (let i = 0; i < kanjiList.length; i += batchSize) {
+  const processBatchRange = async (i: number): Promise<void> => {
+    if (i >= kanjiList.length) {
+      return;
+    }
+
     const batch = kanjiList.slice(i, i + batchSize);
     const batchNum = Math.floor(i / batchSize) + 1;
     console.log(
@@ -459,7 +486,11 @@ const processBatch = async (
     if (i + batchSize < kanjiList.length) {
       await sleep(200);
     }
-  }
+
+    await processBatchRange(i + batchSize);
+  };
+
+  await processBatchRange(0);
 
   if (failures.length === 0) {
     return [];

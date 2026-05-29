@@ -28,7 +28,7 @@ export default function GlobalError({ reset }: { reset: () => void }) {
           <TooltipProvider>
             <Header className="w-full" />
             <div className="size-full grid place-items-center gap-4">
-              <h1 className="font-bold text-xl">Something went wrong!</h1>
+              <h1 className="font-semibold text-xl">Something went wrong!</h1>
               <Button onClick={() => reset()}>Try again</Button>
             </div>
           </TooltipProvider>

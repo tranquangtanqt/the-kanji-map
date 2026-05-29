@@ -5,7 +5,7 @@ export default function NotFound() {
     <>
       <Header className="w-full" />
       <div className="size-full grid place-items-center">
-        <h1 className="font-bold text-xl">404 - Not Found</h1>
+        <h1 className="font-semibold text-xl">404 - Not Found</h1>
       </div>
     </>
   );
