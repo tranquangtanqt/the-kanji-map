@@ -32,6 +32,17 @@ export const Examples = ({ kanjiInfo }: { kanjiInfo: KanjiInfo | null }) => {
     );
   };
 
+  const renderMeaning = (meaning?: string) => {
+    return (meaning || "").split("|(vi)").map((line, i) => (
+      <span
+        key={i}
+        style={i === 0 ? {} : { fontStyle: "italic", fontWeight: "bold", color: "#1976d2",}}
+      >
+        {line}
+      </span>
+    ));
+  };
+
   return (
     <div className="size-full grid grid-rows-[36px_1fr] p-4 mb-14">
       <div>
@@ -57,7 +68,7 @@ export const Examples = ({ kanjiInfo }: { kanjiInfo: KanjiInfo | null }) => {
                     &nbsp;&nbsp;&nbsp;
                   </span>
                   <span>
-                    {example?.meaning?.english}
+                    {renderMeaning(example?.meaning?.english)}
                     {"  "}
                   </span>
                 </p>
@@ -90,7 +101,7 @@ export const Examples = ({ kanjiInfo }: { kanjiInfo: KanjiInfo | null }) => {
               <p>
                 {highlightKanji(onExample?.example)}
                 {"  "}（{onExample?.reading}）{"  "}
-                {onExample?.meaning}
+                {renderMeaning(onExample?.meaning)}
               </p>
             </div>
           ),
@@ -110,7 +121,7 @@ export const Examples = ({ kanjiInfo }: { kanjiInfo: KanjiInfo | null }) => {
               <p>
                 {highlightKanji(kunExample?.example)}
                 {"  "}（{kunExample?.reading}）{"  "}
-                {kunExample?.meaning}
+                {renderMeaning(kunExample?.meaning)}
               </p>
             </div>
           ),
